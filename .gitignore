@@ -44,8 +44,8 @@ ENV/
 Thumbs.db
 
 # Model files (optional - comment out if you want to include models)
-*.keras
-*.h5
+# *.keras
+# *.h5
 # *.pkl
 
 # Logs
