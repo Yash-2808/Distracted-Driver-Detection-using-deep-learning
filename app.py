@@ -77,66 +77,50 @@ def load_model():
     
     logger.info("Model file found: v7_plus_distracted_driver.keras")
     
-    # Don't load model immediately - load on first prediction
-    logger.info("Model will be loaded on first prediction (lazy loading)")
-    IMG_SIZE = (224, 224)  # Default size
+    # Try multiple approaches to load the model immediately
+    loading_attempts = [
+        ("Standard loading", lambda: tf.keras.models.load_model(MODEL_PATH)),
+        ("With compile=False", lambda: tf.keras.models.load_model(MODEL_PATH, compile=False)),
+        ("With custom objects", lambda: tf.keras.models.load_model(
+            MODEL_PATH, 
+            compile=False,
+            custom_objects={'Functional': tf.keras.models.Functional}
+        )),
+        ("Legacy loading", lambda: tf.keras.models.load_model(
+            MODEL_PATH,
+            compile=False,
+            safe_mode=False
+        ))
+    ]
     
-    return True
-
-def get_model():
-    """Get model, loading it if necessary (lazy loading)."""
-    global model
-    
-    if model is None:
-        logger.info("Loading model on demand...")
+    for attempt_name, load_func in loading_attempts:
         try:
-            # Try multiple approaches to load the model
-            loading_attempts = [
-                ("Standard loading", lambda: tf.keras.models.load_model(MODEL_PATH)),
-                ("With compile=False", lambda: tf.keras.models.load_model(MODEL_PATH, compile=False)),
-                ("With custom objects", lambda: tf.keras.models.load_model(
-                    MODEL_PATH, 
-                    compile=False,
-                    custom_objects={'Functional': tf.keras.models.Functional}
-                )),
-                ("Legacy loading", lambda: tf.keras.models.load_model(
-                    MODEL_PATH,
-                    compile=False,
-                    safe_mode=False
-                ))
-            ]
+            logger.info(f"Attempting {attempt_name}...")
+            model = load_func()
+            logger.info(f"Model loaded successfully with {attempt_name}")
             
-            for attempt_name, load_func in loading_attempts:
-                try:
-                    logger.info(f"Attempting {attempt_name}...")
-                    model = load_func()
-                    logger.info(f"Model loaded successfully with {attempt_name}")
-                    
-                    # Get image size from model input
-                    input_shape = model.input_shape
-                    global IMG_SIZE
-                    IMG_SIZE = (input_shape[1], input_shape[2]) if len(input_shape) >= 3 else (224, 224)
-                    logger.info(f"Image size set to: {IMG_SIZE}")
-                    
-                    return model
-                    
-                except Exception as e:
-                    logger.warning(f"{attempt_name} failed: {e}")
-                    if "keras.src.models.functional" in str(e).lower():
-                        logger.info("This is a Keras version compatibility issue, trying next approach...")
-                    continue
+            # Get image size from model input
+            input_shape = model.input_shape
+            IMG_SIZE = (input_shape[1], input_shape[2]) if len(input_shape) >= 3 else (224, 224)
+            logger.info(f"Image size set to: {IMG_SIZE}")
             
-            logger.error("All model loading attempts failed.")
-            return None
+            return True
             
         except Exception as e:
-            logger.error(f"Error loading model: {e}")
-            return None
+            logger.warning(f"{attempt_name} failed: {e}")
+            if "keras.src.models.functional" in str(e).lower():
+                logger.info("This is a Keras version compatibility issue, trying next approach...")
+            continue
     
-    return model
+    logger.error("All model loading attempts failed.")
+    return False
 
-# Load labels at startup (but not the model)
+# Load model at startup
 model_loaded = load_model()
+
+def get_model():
+    """Get model (for compatibility with existing code)."""
+    return model
 
 CLASS_DETAILS = {
     "c0": "Safe driving",
@@ -518,17 +502,16 @@ def index():
             img.save(buffered, format="JPEG")
             image = base64.b64encode(buffered.getvalue()).decode()
 
-            # Get model using lazy loading
-            current_model = get_model()
-            if current_model is None:
-                logger.error("Model could not be loaded - all attempts failed")
-                return jsonify({'error': 'Model could not be loaded. The model file may be incompatible with this environment.'}), 500
+            # Check if model is loaded
+            if model is None:
+                logger.error("Model not available")
+                return jsonify({'error': 'Model not loaded. Please check server logs.'}), 500
             
-            logger.info("Model loaded successfully, making prediction...")
+            logger.info("Making prediction...")
             
             # Preprocess and predict
             x = preprocess(img)
-            preds = current_model.predict(x, verbose=0)
+            preds = model.predict(x, verbose=0)
             
             # Get top prediction
             idx = int(np.argmax(preds))
