@@ -13,6 +13,20 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+# Configure TensorFlow memory usage
+gpus = tf.config.experimental.list_physical_devices('GPU')
+if gpus:
+    try:
+        # Restrict TensorFlow to only allocate 1GB of GPU memory
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+    except RuntimeError as e:
+        pass  # Will handle later after logger is defined
+
+# Configure CPU memory usage
+tf.config.threading.set_inter_op_parallelism_threads(1)
+tf.config.threading.set_intra_op_parallelism_threads(1)
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 
