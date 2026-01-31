@@ -94,21 +94,9 @@ def load_model():
                 logger.info("This is a Keras version compatibility issue, trying next approach...")
             continue
     
-    # If all attempts fail, try to create a mock model for demo
-    logger.error("All model loading attempts failed. Creating mock model for demo...")
-    try:
-        # Create a simple mock model for demonstration
-        model = tf.keras.Sequential([
-            tf.keras.layers.Input(shape=(224, 224, 3)),
-            tf.keras.layers.GlobalAveragePooling2D(),
-            tf.keras.layers.Dense(10, activation='softmax')
-        ])
-        IMG_SIZE = (224, 224)
-        logger.warning("Using mock model - predictions will be random")
-        return True
-    except Exception as e:
-        logger.error(f"Failed to create mock model: {e}")
-        return False
+    # If all attempts fail, return False (no mock model)
+    logger.error("All model loading attempts failed. Original model could not be loaded.")
+    return False
 
 # Load model at startup
 model_loaded = load_model()
