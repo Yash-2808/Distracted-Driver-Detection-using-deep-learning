@@ -13,19 +13,23 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Configure TensorFlow memory usage
-gpus = tf.config.experimental.list_physical_devices('GPU')
-if gpus:
-    try:
-        # Restrict TensorFlow to only allocate 1GB of GPU memory
+# Configure TensorFlow for memory efficiency
+# Limit TensorFlow memory growth
+try:
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    if gpus:
         for gpu in gpus:
             tf.config.experimental.set_memory_growth(gpu, True)
-    except RuntimeError as e:
-        pass  # Will handle later after logger is defined
+except:
+    pass
 
 # Configure CPU memory usage
 tf.config.threading.set_inter_op_parallelism_threads(1)
 tf.config.threading.set_intra_op_parallelism_threads(1)
+
+# Set memory optimization
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
@@ -73,46 +77,65 @@ def load_model():
     
     logger.info("Model file found: v7_plus_distracted_driver.keras")
     
-    # Try multiple approaches to load the model
-    loading_attempts = [
-        ("Standard loading", lambda: tf.keras.models.load_model(MODEL_PATH)),
-        ("With compile=False", lambda: tf.keras.models.load_model(MODEL_PATH, compile=False)),
-        ("With custom objects", lambda: tf.keras.models.load_model(
-            MODEL_PATH, 
-            compile=False,
-            custom_objects={'Functional': tf.keras.models.Functional}
-        )),
-        ("Legacy loading", lambda: tf.keras.models.load_model(
-            MODEL_PATH,
-            compile=False,
-            safe_mode=False
-        ))
-    ]
+    # Don't load model immediately - load on first prediction
+    logger.info("Model will be loaded on first prediction (lazy loading)")
+    IMG_SIZE = (224, 224)  # Default size
     
-    for attempt_name, load_func in loading_attempts:
+    return True
+
+def get_model():
+    """Get model, loading it if necessary (lazy loading)."""
+    global model
+    
+    if model is None:
+        logger.info("Loading model on demand...")
         try:
-            logger.info(f"Attempting {attempt_name}...")
-            model = load_func()
-            logger.info(f"Model loaded successfully with {attempt_name}")
+            # Try multiple approaches to load the model
+            loading_attempts = [
+                ("Standard loading", lambda: tf.keras.models.load_model(MODEL_PATH)),
+                ("With compile=False", lambda: tf.keras.models.load_model(MODEL_PATH, compile=False)),
+                ("With custom objects", lambda: tf.keras.models.load_model(
+                    MODEL_PATH, 
+                    compile=False,
+                    custom_objects={'Functional': tf.keras.models.Functional}
+                )),
+                ("Legacy loading", lambda: tf.keras.models.load_model(
+                    MODEL_PATH,
+                    compile=False,
+                    safe_mode=False
+                ))
+            ]
             
-            # Get image size from model input
-            input_shape = model.input_shape
-            IMG_SIZE = (input_shape[1], input_shape[2]) if len(input_shape) >= 3 else (224, 224)
-            logger.info(f"Image size set to: {IMG_SIZE}")
+            for attempt_name, load_func in loading_attempts:
+                try:
+                    logger.info(f"Attempting {attempt_name}...")
+                    model = load_func()
+                    logger.info(f"Model loaded successfully with {attempt_name}")
+                    
+                    # Get image size from model input
+                    input_shape = model.input_shape
+                    global IMG_SIZE
+                    IMG_SIZE = (input_shape[1], input_shape[2]) if len(input_shape) >= 3 else (224, 224)
+                    logger.info(f"Image size set to: {IMG_SIZE}")
+                    
+                    return model
+                    
+                except Exception as e:
+                    logger.warning(f"{attempt_name} failed: {e}")
+                    if "keras.src.models.functional" in str(e).lower():
+                        logger.info("This is a Keras version compatibility issue, trying next approach...")
+                    continue
             
-            return True
+            logger.error("All model loading attempts failed.")
+            return None
             
         except Exception as e:
-            logger.warning(f"{attempt_name} failed: {e}")
-            if "keras.src.models.functional" in str(e).lower():
-                logger.info("This is a Keras version compatibility issue, trying next approach...")
-            continue
+            logger.error(f"Error loading model: {e}")
+            return None
     
-    # If all attempts fail, return False (no mock model)
-    logger.error("All model loading attempts failed. Original model could not be loaded.")
-    return False
+    return model
 
-# Load model at startup
+# Load labels at startup (but not the model)
 model_loaded = load_model()
 
 CLASS_DETAILS = {
@@ -495,9 +518,14 @@ def index():
             img.save(buffered, format="JPEG")
             image = base64.b64encode(buffered.getvalue()).decode()
 
+            # Get model using lazy loading
+            current_model = get_model()
+            if current_model is None:
+                return jsonify({'error': 'Model could not be loaded'}), 500
+            
             # Preprocess and predict
             x = preprocess(img)
-            preds = model.predict(x, verbose=0)
+            preds = current_model.predict(x, verbose=0)
             
             # Get top prediction
             idx = int(np.argmax(preds))
@@ -525,7 +553,8 @@ def health_check():
     """Health check endpoint"""
     return jsonify({
         'status': 'healthy',
-        'model_loaded': model_loaded and model is not None,
+        'model_loaded': model_loaded and (model is not None or os.path.exists(MODEL_PATH)),
+        'lazy_loading': model is None,
         'timestamp': datetime.now().isoformat()
     })
 
