@@ -4,7 +4,7 @@ services:
     env: python
     plan: free
     buildCommand: "pip install -r requirements.txt"
-    startCommand: "gunicorn app:app"
+    startCommand: "gunicorn app:app --bind 0.0.0.0:$PORT"
     envVars:
       - key: FLASK_ENV
         value: production
@@ -14,5 +14,7 @@ services:
         value: 10000
       - key: PYTHON_VERSION
         value: 3.11
+      - key: WEB_CONCURRENCY
+        value: 1
     healthCheckPath: /health
     autoDeploy: true
