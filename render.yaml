@@ -16,5 +16,9 @@ services:
         value: 3.11
       - key: WEB_CONCURRENCY
         value: 1
+      - key: MODEL_PATH
+        value: v7_plus_distracted_driver.keras
+      - key: LABELS_PATH
+        value: labels.pkl
     healthCheckPath: /health
     autoDeploy: true

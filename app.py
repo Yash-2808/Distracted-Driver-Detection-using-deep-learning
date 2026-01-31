@@ -37,10 +37,18 @@ def load_model():
     global model, labels, id_to_label, IMG_SIZE
     
     try:
+        # Debug: Check current directory and files
+        current_dir = os.getcwd()
+        logger.info(f"Current working directory: {current_dir}")
+        logger.info(f"Files in directory: {os.listdir(current_dir)}")
+        
         # Check if model file exists
         if not os.path.exists(MODEL_PATH):
             logger.error(f"Model file not found: {MODEL_PATH}")
+            logger.error(f"Full path attempted: {os.path.abspath(MODEL_PATH)}")
             return False
+        else:
+            logger.info(f"Model file found: {MODEL_PATH}")
             
         # Load model
         model = tf.keras.models.load_model(MODEL_PATH)
