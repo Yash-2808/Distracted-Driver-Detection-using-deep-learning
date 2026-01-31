@@ -51,8 +51,14 @@ def load_model():
             logger.info(f"Model file found: {MODEL_PATH}")
             
         # Load model
-        model = tf.keras.models.load_model(MODEL_PATH)
-        logger.info("Model loaded successfully")
+        try:
+            model = tf.keras.models.load_model(MODEL_PATH)
+            logger.info("Model loaded successfully")
+        except Exception as e:
+            logger.warning(f"Standard model loading failed: {e}")
+            logger.info("Trying with compile=False for compatibility...")
+            model = tf.keras.models.load_model(MODEL_PATH, compile=False)
+            logger.info("Model loaded successfully with compile=False")
         
         # Load labels
         with open(LABELS_PATH, "rb") as f:
