@@ -8,11 +8,17 @@ import logging
 from datetime import datetime
 import base64
 from io import BytesIO
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+log_level = os.getenv('LOG_LEVEL', 'INFO')
+logging.basicConfig(level=getattr(logging, log_level))
 logger = logging.getLogger(__name__)
 
 # Global variables for model
@@ -21,6 +27,10 @@ labels = None
 id_to_label = None
 IMG_SIZE = None
 
+# Model paths from environment
+MODEL_PATH = os.getenv('MODEL_PATH', 'v7_plus_distracted_driver.keras')
+LABELS_PATH = os.getenv('LABELS_PATH', 'labels.pkl')
+
 # ---------------- LOAD MODEL ----------------
 def load_model():
     """Load the TensorFlow model and labels"""
@@ -28,16 +38,16 @@ def load_model():
     
     try:
         # Check if model file exists
-        if not os.path.exists("v7_plus_distracted_driver.keras"):
-            logger.error("Model file not found: v7_plus_distracted_driver.keras")
+        if not os.path.exists(MODEL_PATH):
+            logger.error(f"Model file not found: {MODEL_PATH}")
             return False
             
         # Load model
-        model = tf.keras.models.load_model("v7_plus_distracted_driver.keras")
+        model = tf.keras.models.load_model(MODEL_PATH)
         logger.info("Model loaded successfully")
         
         # Load labels
-        with open("labels.pkl", "rb") as f:
+        with open(LABELS_PATH, "rb") as f:
             labels = pickle.load(f)
         
         id_to_label = {v: k for k, v in labels.items()}
@@ -51,9 +61,9 @@ def load_model():
         logger.error(f"Error loading model: {e}")
         try:
             logger.info("Trying with custom_objects...")
-            model = tf.keras.models.load_model("v7_plus_distracted_driver.keras", compile=False)
+            model = tf.keras.models.load_model(MODEL_PATH, compile=False)
             
-            with open("labels.pkl", "rb") as f:
+            with open(LABELS_PATH, "rb") as f:
                 labels = pickle.load(f)
             
             id_to_label = {v: k for k, v in labels.items()}
@@ -504,4 +514,9 @@ if __name__ == "__main__":
     else:
         logger.info("Model loaded successfully. Server ready for predictions.")
     
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # Get configuration from environment
+    host = os.getenv('HOST', '0.0.0.0')
+    port = int(os.getenv('PORT', 5000))
+    debug = os.getenv('FLASK_ENV', 'development') == 'development'
+    
+    app.run(debug=debug, host=host, port=port)

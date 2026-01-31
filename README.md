@@ -74,6 +74,8 @@ driver/
 
 ## Usage
 
+### Local Development
+
 1. Start the Flask application:
 ```bash
 python app.py
@@ -85,6 +87,48 @@ http://localhost:5000
 ```
 
 3. Upload an image of a driver to analyze their behavior
+
+### Deployment on Render
+
+1. **Fork this repository** to your GitHub account
+
+2. **Go to [Render Dashboard](https://dashboard.render.com/)** and sign up
+
+3. **Create a new Web Service**:
+   - Click "New +" → "Web Service"
+   - Connect your GitHub account
+   - Select the forked repository
+   - Use the following settings:
+     - **Runtime**: Python 3
+     - **Build Command**: `pip install -r requirements.txt`
+     - **Start Command**: `python app.py`
+     - **Instance Type**: Free
+
+4. **Environment Variables** (Render automatically sets these):
+   - `FLASK_ENV=production`
+   - `HOST=0.0.0.0`
+   - `PORT=10000`
+   - `PYTHON_VERSION=3.11`
+
+5. **Deploy**: Click "Create Web Service"
+
+Your app will be available at: `https://your-app-name.onrender.com`
+
+### Environment Variables
+
+Create a `.env` file for local development (see `.env.example`):
+
+```bash
+cp .env.example .env
+# Edit .env with your configuration
+```
+
+Key environment variables:
+- `FLASK_ENV`: Set to `production` for deployment
+- `HOST`: Set to `0.0.0.0` for deployment
+- `PORT`: Render uses port 10000
+- `MODEL_PATH`: Path to your model file
+- `LABELS_PATH`: Path to your labels file
 
 ## API Endpoints
 
