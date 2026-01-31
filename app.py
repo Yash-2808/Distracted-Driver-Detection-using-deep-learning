@@ -521,7 +521,10 @@ def index():
             # Get model using lazy loading
             current_model = get_model()
             if current_model is None:
-                return jsonify({'error': 'Model could not be loaded'}), 500
+                logger.error("Model could not be loaded - all attempts failed")
+                return jsonify({'error': 'Model could not be loaded. The model file may be incompatible with this environment.'}), 500
+            
+            logger.info("Model loaded successfully, making prediction...")
             
             # Preprocess and predict
             x = preprocess(img)
@@ -547,6 +550,22 @@ def index():
         HTML, label=label, detail=detail, conf=conf, image=image,
         error=error, top_predictions=top_predictions, file_info=file_info
     )
+
+@app.route("/debug", methods=["GET"])
+def debug_info():
+    """Debug endpoint to check model status"""
+    return jsonify({
+        'model_loaded': model_loaded,
+        'model_is_none': model is None,
+        'labels_loaded': labels is not None,
+        'model_file_exists': os.path.exists(MODEL_PATH),
+        'model_file_size': os.path.getsize(MODEL_PATH) if os.path.exists(MODEL_PATH) else None,
+        'img_size': IMG_SIZE,
+        'cwd': os.getcwd(),
+        'files': os.listdir('.'),
+        'tensorflow_version': tf.__version__,
+        'keras_version': tf.keras.__version__
+    })
 
 @app.route("/health", methods=["GET"])
 def health_check():
