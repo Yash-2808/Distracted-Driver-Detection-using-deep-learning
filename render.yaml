@@ -1,10 +1,10 @@
 services:
   - type: web
-    name: driver-distraction-ai-tflite
+    name: driver-distraction-ai
     env: python
     plan: free
-    buildCommand: "pip install -r requirements.txt && cp app_tflite.py app.py"
-    startCommand: "gunicorn app:app --bind 0.0.0.0:$PORT --timeout 300 --workers 1 --max-requests 20 --max-requests-jitter 3 --preload"
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn app:app --bind 0.0.0.0:$PORT --timeout 600 --workers 1 --max-requests 10 --max-requests-jitter 2 --preload"
     envVars:
       - key: FLASK_ENV
         value: production
@@ -17,7 +17,7 @@ services:
       - key: WEB_CONCURRENCY
         value: 1
       - key: MODEL_PATH
-        value: v7_plus_distracted_driver.tflite
+        value: v7_plus_distracted_driver.keras
       - key: LABELS_PATH
         value: labels.pkl
       - key: TF_CPP_MIN_LOG_LEVEL
