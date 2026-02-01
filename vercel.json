@@ -1,0 +1,31 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "app.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "app.py"
+    }
+  ],
+  "env": {
+    "FLASK_ENV": "production",
+    "HOST": "0.0.0.0",
+    "PORT": "10000",
+    "PYTHON_VERSION": "3.11",
+    "WEB_CONCURRENCY": "1",
+    "MODEL_PATH": "v7_plus_distracted_driver.keras",
+    "LABELS_PATH": "labels.pkl",
+    "TF_CPP_MIN_LOG_LEVEL": "3",
+    "TF_FORCE_GPU_ALLOW_GROWTH": "true"
+  },
+  "functions": {
+    "app.py": {
+      "maxDuration": 60
+    }
+  }
+}
