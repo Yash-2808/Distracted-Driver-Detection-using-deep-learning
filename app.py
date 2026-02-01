@@ -13,23 +13,33 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Configure TensorFlow for memory efficiency
-# Limit TensorFlow memory growth
+# Configure TensorFlow for memory efficiency (Render Free Tier Optimization)
+import tensorflow as tf
+
+# Set environment variables for memory optimization
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
+os.environ['TF_XLA_FLAGS'] = '--tf_xla_enable_xla_devices'
+
+# Configure TensorFlow memory settings
 try:
-    gpus = tf.config.experimental.list_physical_devices('GPU')
-    if gpus:
-        for gpu in gpus:
-            tf.config.experimental.set_memory_growth(gpu, True)
+    # Disable GPU (Render free tier doesn't have GPU)
+    tf.config.set_visible_devices([], 'GPU')
+    print("GPU disabled for CPU-only deployment")
 except:
     pass
 
-# Configure CPU memory usage
+# Configure threading for minimal memory usage
 tf.config.threading.set_inter_op_parallelism_threads(1)
 tf.config.threading.set_intra_op_parallelism_threads(1)
 
-# Set memory optimization
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
+# Enable memory growth for any available devices
+try:
+    physical_devices = tf.config.list_physical_devices()
+    for device in physical_devices:
+        tf.config.experimental.set_memory_growth(device, True)
+except:
+    pass
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
@@ -512,6 +522,11 @@ def index():
             # Preprocess and predict
             x = preprocess(img)
             preds = model.predict(x, verbose=0)
+            
+            # Clean up memory immediately after prediction
+            import gc
+            del x
+            gc.collect()
             
             # Get top prediction
             idx = int(np.argmax(preds))
