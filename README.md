@@ -1,12 +1,12 @@
-# AegisEye DMS – Driver Distraction AI & Safety Telematics
+# DriverGuard AI – Intelligent In-Cabin Safety & Real-Time Driver Telematics
 
-A production-grade, deep learning-powered Driver Monitoring System (DMS) and Safety Telematics platform designed for real-time distracted driving detection, explainable visual attention mapping (Grad-CAM), and proactive accident prevention.
+A production-grade, deep learning-powered In-Cabin Driver Monitoring System (DMS) and Safety Telematics platform designed for real-time distracted driving detection, explainable visual attention mapping (Grad-CAM), and proactive accident prevention.
 
 ---
 
-## 🚀 Key Highlights & New Capabilities
+## 🚀 Key Highlights & Capabilities
 
-- 🛡️ **Enterprise Cabin DMS HUD**: Sleek glassmorphism telemetry dashboard with dark mode, interactive crosshair scanners, and real-time risk gauges.
+- 🛡️ **DriverGuard AI Cabin HUD**: Sleek glassmorphism telemetry dashboard with dark mode, interactive crosshair reticles, and real-time risk gauges.
 - 🎯 **High-Accuracy Vision Engine**:
   - **Aspect-Preserved Letterbox & Reflective Padding**: Eliminates distortion of driver gestures, steering postures, and smartphone grips.
   - **3-Crop Test-Time Augmentation (TTA)**: Multi-scale ensembling for robust real-world generalization across camera angles.
@@ -25,7 +25,7 @@ A production-grade, deep learning-powered Driver Monitoring System (DMS) and Saf
 - ⚡ **Fleet Audit Trail & Export**:
   - Session event logging table with instant image snapshots, timestamps, and confidence scores.
   - 1-Click JSON telemetry export for safety compliance auditing.
-- 🧪 **One-Click Real Driving Scenarios**:
+- 🧪 **One-Click Real Driving Presets**:
   - Built-in presets for Safe Driving, Texting, Phone Calls, Drinking, Dashboard Controls, and Passenger Conversations.
 
 ---
@@ -34,16 +34,16 @@ A production-grade, deep learning-powered Driver Monitoring System (DMS) and Saf
 
 | Class | Behavior Description | Risk Level | Distraction Type |
 |-------|----------------------|------------|------------------|
-| **c0** | Safe Driving | 🟢 Nominal (5%) | Focused Roadway Gaze |
+| **c0** | Safe & Attentive Driving | 🟢 Nominal (4%) | Focused Roadway Gaze |
 | **c1** | Texting – Right Hand | 🔴 Critical (96%) | Manual & Visual |
 | **c2** | Talking on Phone – Right Hand | 🔴 High (78%) | Manual & Cognitive |
 | **c3** | Texting – Left Hand | 🔴 Critical (96%) | Manual & Visual |
 | **c4** | Talking on Phone – Left Hand | 🔴 High (78%) | Manual & Cognitive |
-| **c5** | Operating Infotainment / Radio | 🟠 Moderate (52%) | Manual & Visual |
+| **c5** | Operating Radio & Console | 🟠 Moderate (54%) | Manual & Visual |
 | **c6** | Drinking Beverage | 🟠 Moderate (62%) | Manual |
-| **c7** | Reaching Behind / Rear Cabin | 🔴 Critical (90%) | Manual & Visual |
-| **c8** | Hair & Makeup Grooming | 🔴 Critical (88%) | Manual & Visual |
-| **c9** | Talking to Passenger / Turning Head | 🟡 Caution (42%) | Cognitive & Visual |
+| **c7** | Reaching to Rear Cabin | 🔴 Critical (92%) | Manual & Visual |
+| **c8** | Hair & Makeup Grooming | 🔴 Critical (89%) | Manual & Visual |
+| **c9** | Talking to Passenger | 🟡 Caution (42%) | Cognitive & Visual |
 
 ---
 
@@ -51,7 +51,7 @@ A production-grade, deep learning-powered Driver Monitoring System (DMS) and Saf
 
 - **Model Backbone**: EfficientNet-B0 (4.38M parameters) + GlobalAveragePooling2D + BatchNorm + Dense Head
 - **Backend**: Python 3.10+, Flask 3.1.2, TensorFlow 2.20, NumPy, Pillow
-- **Frontend**: Responsive Modern Glassmorphism Dashboard, Web Audio API, Canvas WebRTC Stream, FontAwesome 6.5, Google Fonts (Outfit & JetBrains Mono)
+- **Frontend**: Responsive Modern Glassmorphism Dashboard, Web Audio API, Canvas WebRTC Stream, FontAwesome 6.5, Google Fonts (Plus Jakarta Sans & JetBrains Mono)
 - **Explainability**: Custom Keras 3 GradientTape Grad-CAM Extractor
 
 ---
@@ -111,22 +111,22 @@ Accepts a base64 encoded image or multipart form upload.
   "prediction": {
     "label": "c1",
     "title": "Texting – Right Hand",
-    "category": "High Risk Distraction",
+    "category": "Critical Distraction",
     "severity": "critical",
     "confidence": 98.4,
     "risk_score": 96,
-    "description": "Driver is typing/reading text messages using right hand...",
-    "recommendation": "Immediate hazard! Put the mobile device down...",
+    "description": "Driver is typing/reading messages using right hand...",
+    "recommendation": "Critical Hazard! Immediately stow mobile phone...",
     "metrics": {
-      "visual_distraction": 95,
-      "manual_distraction": 90,
-      "cognitive_distraction": 88
+      "visual_distraction": 96,
+      "manual_distraction": 92,
+      "cognitive_distraction": 90
     }
   },
   "telematics": {
     "safety_score": 12,
     "safety_status": "CRITICAL DISTRACTION",
-    "latency_ms": 28.4,
+    "latency_ms": 24.5,
     "tta_enabled": true
   },
   "top_3": [...],
@@ -136,11 +136,6 @@ Accepts a base64 encoded image or multipart form upload.
   }
 }
 ```
-
-### Additional Endpoints
-- `GET /api/samples` – List available demo driving scenarios
-- `GET /health` – Server health status and model load state
-- `GET /model_info` – Model architecture dimensions and complete class taxonomy
 
 ---
 

@@ -19,14 +19,13 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 
 try:
-    # Disable GPU if CPU deployment
     if os.getenv('FORCE_CPU', 'false').lower() == 'true':
         tf.config.set_visible_devices([], 'GPU')
 except Exception:
     pass
 
 app = Flask(__name__, static_folder='static')
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'driverguard-ai-secret-2026')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB max
 
 log_level = os.getenv('LOG_LEVEL', 'INFO')
@@ -46,28 +45,28 @@ model_loaded = False
 # Domain Knowledge Taxonomy & Risk Profiles
 CLASS_METADATA = {
     "c0": {
-        "title": "Safe Driving",
+        "title": "Safe & Attentive Driving",
         "category": "Nominal Focus",
         "severity": "safe",
-        "risk_score": 5,
-        "visual_distraction": 5,
+        "risk_score": 4,
+        "visual_distraction": 4,
         "manual_distraction": 5,
         "cognitive_distraction": 5,
-        "description": "Driver is actively focused on the roadway with hands properly positioned on steering wheel.",
-        "recommendation": "Maintain standard scanning techniques and safe following distances.",
+        "description": "Driver is actively focused on the forward roadway with both hands properly positioned on steering wheel.",
+        "recommendation": "Optimal posture maintained. Continue standard highway scanning techniques.",
         "badge_color": "#00e676",
         "icon": "fa-shield-check"
     },
     "c1": {
         "title": "Texting – Right Hand",
-        "category": "High Risk Distraction",
+        "category": "Critical Distraction",
         "severity": "critical",
         "risk_score": 96,
-        "visual_distraction": 95,
-        "manual_distraction": 90,
-        "cognitive_distraction": 88,
-        "description": "Driver is typing/reading text messages using right hand, diverting visual gaze and manual control.",
-        "recommendation": "Immediate hazard! Put the mobile device down and keep both hands on the wheel.",
+        "visual_distraction": 96,
+        "manual_distraction": 92,
+        "cognitive_distraction": 90,
+        "description": "Driver is typing/reading messages using right hand, diverting visual gaze and tactile control.",
+        "recommendation": "Critical Hazard! Immediately stow mobile phone and return right hand to steering wheel.",
         "badge_color": "#ff1744",
         "icon": "fa-mobile-screen-button"
     },
@@ -76,24 +75,24 @@ CLASS_METADATA = {
         "category": "High Risk Distraction",
         "severity": "danger",
         "risk_score": 78,
-        "visual_distraction": 55,
-        "manual_distraction": 85,
-        "cognitive_distraction": 80,
+        "visual_distraction": 50,
+        "manual_distraction": 88,
+        "cognitive_distraction": 82,
         "description": "Driver holding phone to right ear with one hand off the steering control.",
-        "recommendation": "Use integrated hands-free Bluetooth systems or pull over safely before calls.",
+        "recommendation": "Switch to integrated hands-free Bluetooth audio or park safely before calling.",
         "badge_color": "#ff5252",
         "icon": "fa-phone-volume"
     },
     "c3": {
         "title": "Texting – Left Hand",
-        "category": "High Risk Distraction",
+        "category": "Critical Distraction",
         "severity": "critical",
         "risk_score": 96,
-        "visual_distraction": 95,
-        "manual_distraction": 90,
-        "cognitive_distraction": 88,
-        "description": "Driver is operating smartphone with left hand, significantly compromising reaction times.",
-        "recommendation": "Immediate hazard! Put mobile device away and refocus on forward vehicle path.",
+        "visual_distraction": 96,
+        "manual_distraction": 92,
+        "cognitive_distraction": 90,
+        "description": "Driver is operating smartphone with left hand, significantly compromising reaction times and steering control.",
+        "recommendation": "Critical Hazard! Put device away and refocus visual gaze on vehicle travel path.",
         "badge_color": "#ff1744",
         "icon": "fa-mobile-screen-button"
     },
@@ -102,76 +101,76 @@ CLASS_METADATA = {
         "category": "High Risk Distraction",
         "severity": "danger",
         "risk_score": 78,
-        "visual_distraction": 55,
-        "manual_distraction": 85,
-        "cognitive_distraction": 80,
-        "description": "Driver holding phone to left ear, reducing situational awareness and steering readiness.",
-        "recommendation": "Switch to hands-free voice commands or postpone conversation until parked.",
+        "visual_distraction": 50,
+        "manual_distraction": 88,
+        "cognitive_distraction": 82,
+        "description": "Driver holding phone to left ear, reducing peripheral awareness and rapid steering capability.",
+        "recommendation": "Utilize hands-free voice commands or postpone conversation until vehicle is parked.",
         "badge_color": "#ff5252",
         "icon": "fa-phone-volume"
     },
     "c5": {
-        "title": "Operating Infotainment / Radio",
+        "title": "Operating Radio & Console",
         "category": "Moderate Distraction",
         "severity": "warning",
-        "risk_score": 52,
-        "visual_distraction": 70,
-        "manual_distraction": 65,
-        "cognitive_distraction": 40,
-        "description": "Driver interacting with center console, touchscreen, or climate/radio controls.",
-        "recommendation": "Utilize steering wheel media controls or adjust settings before departure.",
+        "risk_score": 54,
+        "visual_distraction": 72,
+        "manual_distraction": 68,
+        "cognitive_distraction": 42,
+        "description": "Driver interacting with center dashboard, climate dials, or infotainment touchscreen.",
+        "recommendation": "Use steering-wheel mounted media controls or preset audio playlists before driving.",
         "badge_color": "#ff9100",
         "icon": "fa-sliders"
     },
     "c6": {
-        "title": "Drinking / Reaching Beverage",
+        "title": "Drinking Beverage",
         "category": "Moderate Distraction",
         "severity": "warning",
         "risk_score": 62,
-        "visual_distraction": 50,
-        "manual_distraction": 75,
+        "visual_distraction": 48,
+        "manual_distraction": 76,
         "cognitive_distraction": 35,
-        "description": "Driver consuming drink or holding beverage container with reduced steering grip.",
-        "recommendation": "Drink only at full stops or secure cup firmly in cabin holder.",
+        "description": "Driver consuming beverage with one-handed steering control and temporary obstruction of vision.",
+        "recommendation": "Consume drinks only at red lights/full stops or secure beverage firmly in cup holder.",
         "badge_color": "#ffab00",
         "icon": "fa-mug-hot"
     },
     "c7": {
-        "title": "Reaching Behind / Rear Seats",
+        "title": "Reaching to Rear Cabin",
         "category": "Severe Distraction",
         "severity": "critical",
-        "risk_score": 90,
-        "visual_distraction": 90,
+        "risk_score": 92,
+        "visual_distraction": 94,
         "manual_distraction": 95,
-        "cognitive_distraction": 70,
-        "description": "Driver turning torso and reaching to rear passenger cabin; severe lane drift risk.",
-        "recommendation": "Pull over safely before retrieving items from rear seats or floorboards.",
+        "cognitive_distraction": 72,
+        "description": "Driver twisting torso and reaching behind front seats; extreme risk of involuntary lane departure.",
+        "recommendation": "Never reach behind while in motion. Pull onto highway shoulder or parking spot first.",
         "badge_color": "#ff1744",
         "icon": "fa-hand-back-fist"
     },
     "c8": {
-        "title": "Hair & Makeup / Personal Grooming",
+        "title": "Hair & Makeup Grooming",
         "category": "Severe Distraction",
         "severity": "critical",
-        "risk_score": 88,
-        "visual_distraction": 92,
+        "risk_score": 89,
+        "visual_distraction": 94,
         "manual_distraction": 90,
         "cognitive_distraction": 65,
-        "description": "Driver looking into vanity mirror or grooming hair/face during vehicle movement.",
-        "recommendation": "Perform personal grooming before starting vehicle or when parked.",
+        "description": "Driver looking into vanity mirror or grooming hair/makeup during vehicle transit.",
+        "recommendation": "Perform personal grooming before driving or when vehicle is safely stationary.",
         "badge_color": "#ff1744",
         "icon": "fa-wand-magic-sparkles"
     },
     "c9": {
-        "title": "Talking to Passenger / Turning Head",
+        "title": "Talking to Passenger",
         "category": "Mild-Moderate Distraction",
         "severity": "caution",
         "risk_score": 42,
-        "visual_distraction": 65,
+        "visual_distraction": 64,
         "manual_distraction": 15,
         "cognitive_distraction": 55,
-        "description": "Driver turning head toward passenger seat, periodically looking away from roadway.",
-        "recommendation": "Keep eyes forward; converse without taking visual focus off the road ahead.",
+        "description": "Driver turning head toward passenger seat, intermittently taking eyes off the roadway.",
+        "recommendation": "Maintain eyes forward on the road; speak without turning head away from traffic.",
         "badge_color": "#ffd600",
         "icon": "fa-comments"
     }
@@ -184,7 +183,7 @@ def initialize_model():
     """Load model, labels, and initialize Grad-CAM extractor."""
     global model, eff_feature_model, labels, id_to_label, IMG_SIZE, model_loaded
     
-    logger.info("Initializing Driver Distraction AI System...")
+    logger.info("Initializing DriverGuard AI Vision Engine...")
     
     # Load labels
     try:
@@ -192,9 +191,8 @@ def initialize_model():
             with open(LABELS_PATH, 'rb') as f:
                 labels = pickle.load(f)
             id_to_label = {v: k for k, v in labels.items()}
-            logger.info(f"Labels loaded successfully: {labels}")
+            logger.info(f"Labels loaded: {labels}")
         else:
-            logger.warning("Labels file not found, using default label map.")
             labels = {f"c{i}": i for i in range(10)}
             id_to_label = {i: f"c{i}" for i in range(10)}
     except Exception as e:
@@ -210,22 +208,22 @@ def initialize_model():
         model = tf.keras.models.load_model(MODEL_PATH, compile=False)
         input_shape = model.input_shape
         IMG_SIZE = (input_shape[1], input_shape[2]) if len(input_shape) >= 3 else (224, 224)
-        logger.info(f"Keras model loaded successfully with input shape: {input_shape}")
+        logger.info(f"Keras model loaded successfully. Input shape: {input_shape}")
         
         # Build Grad-CAM feature extractor
         try:
             eff = model.get_layer('efficientnetb0')
             last_conv_layer = eff.get_layer('top_activation')
             eff_feature_model = tf.keras.Model(inputs=eff.input, outputs=[last_conv_layer.output, eff.output])
-            logger.info("Grad-CAM feature extractor constructed successfully.")
+            logger.info("Grad-CAM feature extractor built successfully.")
         except Exception as cam_err:
             logger.warning(f"Grad-CAM feature model could not be initialized: {cam_err}")
             eff_feature_model = None
             
-        # Warm up model with a dummy inference
+        # Warm up model
         dummy = np.zeros((1, IMG_SIZE[0], IMG_SIZE[1], 3), dtype=np.float32)
         _ = model.predict(dummy, verbose=0)
-        logger.info("Model warm-up completed.")
+        logger.info("DriverGuard AI Engine warm-up completed.")
         
         model_loaded = True
         return True
@@ -236,12 +234,9 @@ def initialize_model():
 # Initialize on startup
 initialize_model()
 
-# ---------------- ACCURACY ENHANCEMENT & PREPROCESSING ----------------
+# ---------------- PREPROCESSING & ACCURACY PIPELINE ----------------
 def pad_and_resize_aspect_preserved(image, target_size=(224, 224)):
-    """
-    Preserves driver aspect ratio by letterboxing with reflective/edge padding
-    instead of squashing the image, preventing deformation of hands and posture.
-    """
+    """Preserves driver cabin aspect ratio with dark vehicle-interior letterbox padding."""
     orig_w, orig_h = image.size
     target_w, target_h = target_size
     
@@ -250,26 +245,21 @@ def pad_and_resize_aspect_preserved(image, target_size=(224, 224)):
     new_h = int(orig_h * scale)
     
     resized = image.resize((new_w, new_h), Image.Resampling.LANCZOS)
-    
-    # Create letterbox canvas with neutral dark tone matching car cabins
-    padded = Image.new("RGB", target_size, (20, 22, 28))
+    padded = Image.new("RGB", target_size, (16, 20, 28))
     paste_x = (target_w - new_w) // 2
     paste_y = (target_h - new_h) // 2
     padded.paste(resized, (paste_x, paste_y))
     return padded
 
 def generate_tta_variants(pil_img, target_size=(224, 224)):
-    """
-    Test-Time Augmentation (TTA) Generator:
-    Generates multi-scale aspect-preserved crops and multi-angle samples.
-    """
+    """Generates multi-scale aspect-preserved crops for Test-Time Augmentation."""
     variants = []
     
-    # 1. Base aspect-preserved padded image
+    # 1. Base aspect-preserved padded frame
     base_padded = pad_and_resize_aspect_preserved(pil_img, target_size)
     variants.append(np.array(base_padded, dtype=np.float32))
     
-    # 2. High-fidelity center crop (focusing on driver cabin center)
+    # 2. Driver cabin center crop
     w, h = pil_img.size
     min_dim = min(w, h)
     left = (w - min_dim) // 2
@@ -277,19 +267,18 @@ def generate_tta_variants(pil_img, target_size=(224, 224)):
     center_cropped = pil_img.crop((left, top, left + min_dim, top + min_dim)).resize(target_size, Image.Resampling.LANCZOS)
     variants.append(np.array(center_cropped, dtype=np.float32))
     
-    # 3. Slight zoom in (92% crop) to focus on driver gestures
+    # 3. Gesture zoom crop (92%)
     crop_w, crop_h = int(w * 0.92), int(h * 0.92)
     left = (w - crop_w) // 2
     top = (h - crop_h) // 2
     zoom_crop = pil_img.crop((left, top, left + crop_w, top + crop_h)).resize(target_size, Image.Resampling.LANCZOS)
     variants.append(np.array(zoom_crop, dtype=np.float32))
     
-    # Stack batch: shape (3, 224, 224, 3)
     batch = np.stack(variants, axis=0)
     return batch, base_padded
 
 def compute_gradcam_heatmap(img_array, target_class_idx):
-    """Compute normalized Grad-CAM activation heatmap for the target class."""
+    """Computes high-contrast Grad-CAM attention heatmap."""
     if eff_feature_model is None or model is None:
         return None
     try:
@@ -317,15 +306,14 @@ def compute_gradcam_heatmap(img_array, target_class_idx):
         if max_h > 1e-8:
             heatmap = heatmap / max_h
             
-        # Resize to 224x224
         hm_img = Image.fromarray((heatmap * 255).astype(np.uint8)).resize((224, 224), Image.Resampling.BICUBIC)
         return np.array(hm_img, dtype=np.float32) / 255.0
     except Exception as e:
-        logger.warning(f"Grad-CAM computation exception: {e}")
+        logger.warning(f"Grad-CAM error: {e}")
         return None
 
 def colormap_turbo(val):
-    """Pure NumPy high-contrast Turbo/Jet colormap for explainable attention heatmaps."""
+    """Vectorized high-definition Turbo colormap."""
     x = np.clip(val, 0, 1)
     r = np.clip(1.5 - np.abs(4.0 * x - 3.0), 0, 1)
     g = np.clip(1.5 - np.abs(4.0 * x - 2.0), 0, 1)
@@ -333,15 +321,14 @@ def colormap_turbo(val):
     return np.stack([r, g, b], axis=-1)
 
 def generate_cam_overlay(base_img_pil, heatmap_2d):
-    """Overlays Grad-CAM attention heatmap onto the base image."""
+    """Blends Grad-CAM heatmap over driver image with smooth gaussian diffusion."""
     if heatmap_2d is None:
         return None
     try:
         color_hm = (colormap_turbo(heatmap_2d) * 255).astype(np.uint8)
         hm_pil = Image.fromarray(color_hm).resize(base_img_pil.size, Image.Resampling.BICUBIC)
-        # Apply slight blur to make heatmap smooth and realistic
         hm_pil = hm_pil.filter(ImageFilter.GaussianBlur(radius=3))
-        blended = Image.blend(base_img_pil, hm_pil, alpha=0.45)
+        blended = Image.blend(base_img_pil, hm_pil, alpha=0.48)
         
         buffered = io.BytesIO()
         blended.save(buffered, format="JPEG", quality=92)
@@ -350,27 +337,18 @@ def generate_cam_overlay(base_img_pil, heatmap_2d):
         logger.error(f"Error generating CAM overlay: {e}")
         return None
 
-# ---------------- PREDICTION LOGIC ----------------
+# ---------------- INFERENCE ENGINE ----------------
 def run_enhanced_inference(pil_img, use_tta=True, generate_cam=True):
-    """
-    Executes full high-accuracy inference pipeline:
-    1. EXIF orientation correction
-    2. Test-Time Augmentation (TTA)
-    3. Probability ensembling & confidence calibration
-    4. Grad-CAM visual attention mapping
-    5. Driver risk scoring & distraction taxonomy
-    """
     start_time = time.time()
     
-    # 1. EXIF auto-rotation
+    # EXIF auto-orientation
     pil_img = ImageOps.exif_transpose(pil_img)
     pil_img = pil_img.convert("RGB")
     
-    # 2. TTA variants
+    # Inference with TTA
     if use_tta:
         batch, base_padded = generate_tta_variants(pil_img, IMG_SIZE)
         raw_preds = model.predict(batch, verbose=0)
-        # Weighted ensemble: 50% base padded, 25% center crop, 25% zoom crop
         weights = np.array([0.50, 0.25, 0.25]).reshape(3, 1)
         avg_preds = np.sum(raw_preds * weights, axis=0)
     else:
@@ -378,7 +356,7 @@ def run_enhanced_inference(pil_img, use_tta=True, generate_cam=True):
         single_arr = np.expand_dims(np.array(base_padded, dtype=np.float32), axis=0)
         avg_preds = model.predict(single_arr, verbose=0)[0]
         
-    # Softmax temperature smoothing for calibrated probabilities
+    # Temperature calibrated probabilities
     temperature = 0.95
     exp_preds = np.exp(np.log(np.clip(avg_preds, 1e-7, 1.0)) / temperature)
     calibrated_probs = exp_preds / np.sum(exp_preds)
@@ -389,7 +367,7 @@ def run_enhanced_inference(pil_img, use_tta=True, generate_cam=True):
     top_meta = CLASS_METADATA.get(top_label, CLASS_METADATA["c0"])
     top_conf = round(float(calibrated_probs[top_idx]) * 100, 1)
     
-    # Full distribution & Top predictions
+    # Full probability distribution
     all_predictions = []
     for idx in range(len(calibrated_probs)):
         lbl = id_to_label.get(idx, f"c{idx}")
@@ -402,6 +380,7 @@ def run_enhanced_inference(pil_img, use_tta=True, generate_cam=True):
             "category": meta.get("category", "General"),
             "severity": meta.get("severity", "info"),
             "confidence": prob,
+            "risk_score": meta.get("risk_score", 50),
             "badge_color": meta.get("badge_color", "#4facfe"),
             "icon": meta.get("icon", "fa-circle-dot")
         })
@@ -409,19 +388,12 @@ def run_enhanced_inference(pil_img, use_tta=True, generate_cam=True):
     all_predictions.sort(key=lambda x: x["confidence"], reverse=True)
     top_3 = all_predictions[:3]
     
-    # Calculate Driver Safety Telematics
-    # Weighted risk index across predictions
-    overall_risk = 0.0
-    for pred in all_predictions:
-        lbl = pred["label"]
-        prob = pred["confidence"] / 100.0
-        meta = CLASS_METADATA.get(lbl, {})
-        overall_risk += prob * meta.get("risk_score", 50)
-        
+    # Weighted Telematics Risk Score
+    overall_risk = sum((p["confidence"] / 100.0) * p["risk_score"] for p in all_predictions)
     overall_safety_score = max(0, min(100, round(100 - overall_risk)))
     
     if overall_safety_score >= 80:
-        safety_status = "SAFE DRIVING"
+        safety_status = "SAFE & ATTENTIVE"
         safety_status_color = "#00e676"
         status_alert_level = "nominal"
     elif overall_safety_score >= 50:
@@ -433,7 +405,7 @@ def run_enhanced_inference(pil_img, use_tta=True, generate_cam=True):
         safety_status_color = "#ff1744"
         status_alert_level = "critical"
         
-    # Generate Grad-CAM if requested
+    # Grad-CAM Heatmap
     cam_base64 = None
     if generate_cam and eff_feature_model is not None:
         base_arr = np.array(base_padded, dtype=np.float32)
@@ -474,7 +446,7 @@ def run_enhanced_inference(pil_img, use_tta=True, generate_cam=True):
             "is_distracted": top_label != "c0",
             "latency_ms": latency_ms,
             "tta_enabled": use_tta,
-            "model_version": "EfficientNet-B0 DMS v7.2-Ultra"
+            "engine": "DriverGuard AI Neural Core v8.0"
         },
         "top_3": top_3,
         "all_predictions": all_predictions,
@@ -484,46 +456,49 @@ def run_enhanced_inference(pil_img, use_tta=True, generate_cam=True):
         }
     }
 
-# ---------------- HTML DASHBOARD TEMPLATE ----------------
+# ---------------- HTML TEMPLATE ----------------
 HTML_DASHBOARD = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AegisEye DMS – Real-Time AI Driver Monitoring & Safety Telematics</title>
+    <title>DriverGuard AI – Intelligent Cabin Safety & Telematics</title>
     
-    <!-- Modern Typography & Icons -->
+    <!-- Fonts & Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
     <style>
         :root {
-            --bg-deep: #0a0d14;
-            --bg-card: rgba(18, 24, 38, 0.75);
-            --bg-card-hover: rgba(26, 35, 55, 0.85);
-            --border-glass: rgba(255, 255, 255, 0.08);
+            --bg-base: #080a0f;
+            --bg-surface: rgba(14, 18, 28, 0.78);
+            --bg-surface-elevated: rgba(22, 28, 44, 0.88);
+            --border-subtle: rgba(255, 255, 255, 0.08);
             --border-glow: rgba(0, 242, 254, 0.35);
             
-            --primary: #00f2fe;
-            --primary-gradient: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
-            --safe-color: #00e676;
-            --safe-gradient: linear-gradient(135deg, #00e676 0%, #00b0ff 100%);
-            --warning-color: #ff9100;
-            --warning-gradient: linear-gradient(135deg, #ff9100 0%, #ff5252 100%);
-            --danger-color: #ff1744;
-            --danger-gradient: linear-gradient(135deg, #ff1744 0%, #f50057 100%);
+            --accent-cyan: #00f2fe;
+            --accent-blue: #4facfe;
+            --grad-primary: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+            --grad-safe: linear-gradient(135deg, #00e676 0%, #00b0ff 100%);
+            --grad-warning: linear-gradient(135deg, #ff9100 0%, #ff5252 100%);
+            --grad-danger: linear-gradient(135deg, #ff1744 0%, #f50057 100%);
             
-            --text-main: #f0f4f8;
-            --text-muted: #8a99ad;
-            --text-dim: #5c6b7d;
+            --color-safe: #00e676;
+            --color-warning: #ff9100;
+            --color-danger: #ff1744;
             
-            --radius-lg: 20px;
-            --radius-md: 14px;
-            --radius-sm: 8px;
-            --shadow-hud: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 30px rgba(0, 242, 254, 0.05);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-tertiary: #64748b;
+            
+            --radius-xl: 22px;
+            --radius-lg: 16px;
+            --radius-md: 10px;
+            --radius-sm: 6px;
+            --shadow-glass: 0 25px 60px rgba(0, 0, 0, 0.6), 0 0 35px rgba(0, 242, 254, 0.04);
         }
 
         * {
@@ -533,218 +508,219 @@ HTML_DASHBOARD = """
         }
 
         body {
-            font-family: 'Outfit', -apple-system, sans-serif;
-            background-color: var(--bg-deep);
-            color: var(--text-main);
+            font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-primary);
             min-height: 100vh;
             overflow-x: hidden;
             background-image: 
-                radial-gradient(circle at 10% 20%, rgba(0, 242, 254, 0.05) 0%, transparent 40%),
-                radial-gradient(circle at 90% 80%, rgba(79, 172, 254, 0.05) 0%, transparent 40%),
-                linear-gradient(rgba(10, 13, 20, 0.95), rgba(10, 13, 20, 0.95)),
-                repeating-linear-gradient(0deg, transparent, transparent 40px, rgba(255, 255, 255, 0.015) 40px, rgba(255, 255, 255, 0.015) 41px);
+                radial-gradient(circle at 15% 15%, rgba(0, 242, 254, 0.06) 0%, transparent 45%),
+                radial-gradient(circle at 85% 85%, rgba(79, 172, 254, 0.06) 0%, transparent 45%),
+                radial-gradient(circle at 50% 50%, rgba(255, 23, 68, 0.02) 0%, transparent 50%),
+                linear-gradient(rgba(8, 10, 15, 0.96), rgba(8, 10, 15, 0.96)),
+                repeating-linear-gradient(0deg, transparent, transparent 48px, rgba(255, 255, 255, 0.012) 48px, rgba(255, 255, 255, 0.012) 49px);
         }
 
-        /* Top Navigation Header */
+        /* Top Header */
         header {
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 16px 36px;
-            background: rgba(10, 13, 20, 0.8);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid var(--border-glass);
+            background: rgba(8, 10, 15, 0.85);
+            backdrop-filter: blur(24px);
+            border-bottom: 1px solid var(--border-subtle);
             position: sticky;
             top: 0;
             z-index: 100;
         }
 
-        .brand {
+        .brand-container {
             display: flex;
             align-items: center;
             gap: 14px;
         }
 
-        .brand-logo {
-            width: 42px;
-            height: 42px;
+        .brand-shield {
+            width: 44px;
+            height: 44px;
             border-radius: 12px;
-            background: var(--primary-gradient);
+            background: var(--grad-primary);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 20px;
-            color: #0a0d14;
-            box-shadow: 0 0 20px rgba(0, 242, 254, 0.4);
+            font-size: 22px;
+            color: #080a0f;
+            box-shadow: 0 0 25px rgba(0, 242, 254, 0.45);
         }
 
-        .brand-title {
-            font-size: 20px;
-            font-weight: 700;
-            letter-spacing: -0.5px;
-            background: linear-gradient(120deg, #ffffff, #cfd9df);
+        .brand-name {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -0.6px;
+            background: linear-gradient(120deg, #ffffff 0%, #cbd5e1 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
-        .brand-tag {
+        .brand-subtitle {
             font-size: 11px;
-            font-weight: 600;
+            font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 1.5px;
-            color: var(--primary);
+            letter-spacing: 1.6px;
+            color: var(--accent-cyan);
             font-family: 'JetBrains Mono', monospace;
         }
 
-        .header-telemetry {
+        /* Navigation Tab Pill Bar */
+        .tab-nav {
             display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-
-        .tele-badge {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 12px;
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid var(--border-glass);
-            padding: 6px 14px;
-            border-radius: 30px;
-        }
-
-        .tele-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--safe-color);
-            box-shadow: 0 0 10px var(--safe-color);
-            animation: pulse-dot 2s infinite;
-        }
-
-        @keyframes pulse-dot {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.4; transform: scale(0.85); }
-        }
-
-        /* Mode Tabs */
-        .tab-bar {
-            display: flex;
-            gap: 8px;
+            gap: 6px;
             background: rgba(255, 255, 255, 0.03);
-            border: 1px solid var(--border-glass);
-            padding: 4px;
-            border-radius: 12px;
+            border: 1px solid var(--border-subtle);
+            padding: 5px;
+            border-radius: 14px;
         }
 
-        .tab-btn {
+        .tab-item {
             background: transparent;
             border: none;
-            color: var(--text-muted);
-            padding: 8px 18px;
-            border-radius: 8px;
+            color: var(--text-secondary);
+            padding: 9px 20px;
+            border-radius: 10px;
             font-size: 13px;
             font-weight: 600;
             cursor: pointer;
             display: flex;
             align-items: center;
             gap: 8px;
-            transition: all 0.2s ease;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        .tab-btn:hover {
-            color: var(--text-main);
+        .tab-item:hover {
+            color: var(--text-primary);
             background: rgba(255, 255, 255, 0.05);
         }
 
-        .tab-btn.active {
-            background: var(--primary-gradient);
-            color: #0a0d14;
-            box-shadow: 0 4px 15px rgba(0, 242, 254, 0.25);
+        .tab-item.active {
+            background: var(--grad-primary);
+            color: #080a0f;
+            box-shadow: 0 4px 18px rgba(0, 242, 254, 0.3);
         }
 
-        /* Container Layout */
-        .main-container {
+        .telemetry-status-box {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .live-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-subtle);
+            padding: 6px 14px;
+            border-radius: 30px;
+        }
+
+        .live-pulse {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--color-safe);
+            box-shadow: 0 0 12px var(--color-safe);
+            animation: pulseGlow 1.8s infinite;
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.35; transform: scale(0.8); }
+        }
+
+        /* Main Container */
+        .main-wrapper {
             max-width: 1440px;
             margin: 28px auto;
             padding: 0 28px;
         }
 
-        .view-section {
+        .tab-pane {
             display: none;
         }
 
-        .view-section.active {
+        .tab-pane.active {
             display: block;
-            animation: fadeIn 0.3s ease;
+            animation: paneFadeIn 0.3s ease;
         }
 
-        @keyframes fadeIn {
+        @keyframes paneFadeIn {
             from { opacity: 0; transform: translateY(8px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Grid Layout for Inspector */
-        .inspector-grid {
+        /* 2-Column Inspector Layout */
+        .inspector-layout {
             display: grid;
             grid-template-columns: 1.15fr 0.85fr;
             gap: 24px;
         }
 
-        @media (max-width: 1024px) {
-            .inspector-grid {
+        @media (max-width: 1040px) {
+            .inspector-layout {
                 grid-template-columns: 1fr;
             }
         }
 
-        /* Glass Card */
-        .glass-card {
-            background: var(--bg-card);
-            backdrop-filter: blur(24px);
-            border: 1px solid var(--border-glass);
-            border-radius: var(--radius-lg);
+        /* Glass Panel */
+        .glass-panel {
+            background: var(--bg-surface);
+            backdrop-filter: blur(28px);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-xl);
             padding: 24px;
-            box-shadow: var(--shadow-hud);
+            box-shadow: var(--shadow-glass);
             position: relative;
             overflow: hidden;
         }
 
-        .glass-card::before {
+        .glass-panel::before {
             content: '';
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
             height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.18), transparent);
         }
 
-        .card-header {
+        .panel-heading {
             display: flex;
             align-items: center;
             justify-content: space-between;
             margin-bottom: 20px;
         }
 
-        .card-title {
+        .panel-title {
             font-size: 17px;
             font-weight: 700;
             display: flex;
             align-items: center;
             gap: 10px;
-            color: var(--text-main);
+            color: var(--text-primary);
         }
 
-        .card-title i {
-            color: var(--primary);
+        .panel-title i {
+            color: var(--accent-cyan);
         }
 
-        /* Upload Drop Zone */
-        .dropzone-box {
+        /* Dropzone Component */
+        .upload-dropzone {
             border: 2px dashed rgba(255, 255, 255, 0.12);
-            border-radius: var(--radius-md);
-            padding: 32px 20px;
+            border-radius: var(--radius-lg);
+            padding: 30px 20px;
             text-align: center;
             background: rgba(255, 255, 255, 0.015);
             cursor: pointer;
@@ -752,91 +728,90 @@ HTML_DASHBOARD = """
             position: relative;
         }
 
-        .dropzone-box:hover, .dropzone-box.dragover {
-            border-color: var(--primary);
+        .upload-dropzone:hover, .upload-dropzone.dragover {
+            border-color: var(--accent-cyan);
             background: rgba(0, 242, 254, 0.04);
-            box-shadow: 0 0 25px rgba(0, 242, 254, 0.1);
+            box-shadow: 0 0 28px rgba(0, 242, 254, 0.12);
         }
 
-        .dropzone-icon {
-            font-size: 42px;
-            background: var(--primary-gradient);
+        .upload-icon {
+            font-size: 40px;
+            background: var(--grad-primary);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             margin-bottom: 12px;
         }
 
-        .dropzone-text {
+        .upload-title {
             font-size: 15px;
-            font-weight: 600;
-            color: var(--text-main);
+            font-weight: 700;
             margin-bottom: 4px;
         }
 
-        .dropzone-sub {
+        .upload-hint {
             font-size: 12px;
-            color: var(--text-muted);
+            color: var(--text-secondary);
         }
 
-        /* Preset Demo Scenario Strip */
-        .presets-strip {
+        /* Preset Scenario Grid */
+        .scenarios-container {
             margin-top: 18px;
         }
 
-        .presets-label {
-            font-size: 12px;
-            font-weight: 600;
+        .scenarios-title {
+            font-size: 11px;
+            font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--text-muted);
+            letter-spacing: 1.2px;
+            color: var(--text-tertiary);
             margin-bottom: 10px;
             display: flex;
             align-items: center;
             gap: 6px;
         }
 
-        .preset-chips {
-            display: flex;
-            flex-wrap: wrap;
+        .scenario-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
             gap: 8px;
         }
 
-        .preset-chip {
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid var(--border-glass);
-            color: var(--text-main);
-            padding: 7px 12px;
-            border-radius: var(--radius-sm);
+        .scenario-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 10px 12px;
             font-size: 12px;
-            font-weight: 500;
+            font-weight: 600;
             cursor: pointer;
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
             transition: all 0.2s ease;
+            color: var(--text-primary);
         }
 
-        .preset-chip:hover {
-            border-color: var(--primary);
+        .scenario-card:hover {
+            border-color: var(--accent-cyan);
             background: rgba(0, 242, 254, 0.08);
             transform: translateY(-2px);
         }
 
-        /* Image Display & Comparison */
-        .viewport-container {
+        /* High-Tech Viewport */
+        .viewport-screen {
             margin-top: 20px;
-            border-radius: var(--radius-md);
+            border-radius: var(--radius-lg);
             overflow: hidden;
             background: #000;
             position: relative;
-            min-height: 320px;
+            min-height: 330px;
             display: flex;
             align-items: center;
             justify-content: center;
-            border: 1px solid var(--border-glass);
+            border: 1px solid var(--border-subtle);
         }
 
-        .viewport-img {
+        .viewport-media {
             width: 100%;
             height: auto;
             max-height: 480px;
@@ -844,120 +819,119 @@ HTML_DASHBOARD = """
             display: block;
         }
 
-        .view-controls {
-            position: absolute;
-            bottom: 12px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 6px;
-            background: rgba(10, 13, 20, 0.85);
-            backdrop-filter: blur(12px);
-            padding: 4px;
-            border-radius: 30px;
-            border: 1px solid var(--border-glass);
-            z-index: 10;
-        }
-
-        .view-toggle-btn {
-            background: transparent;
-            border: none;
-            color: var(--text-muted);
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .view-toggle-btn.active {
-            background: rgba(255, 255, 255, 0.15);
-            color: #fff;
-        }
-
-        /* HUD Scanner Overlay */
-        .hud-scanner {
+        .hud-overlay {
             position: absolute;
             inset: 0;
             pointer-events: none;
-            border: 1px solid rgba(0, 242, 254, 0.2);
-            border-radius: var(--radius-md);
+            border: 1px solid rgba(0, 242, 254, 0.18);
+            border-radius: var(--radius-lg);
         }
 
-        .hud-corner {
+        .hud-corner-bracket {
             position: absolute;
-            width: 16px;
-            height: 16px;
-            border-color: var(--primary);
+            width: 18px;
+            height: 18px;
+            border-color: var(--accent-cyan);
             border-style: solid;
         }
-        .hud-tl { top: 8px; left: 8px; border-width: 2px 0 0 2px; }
-        .hud-tr { top: 8px; right: 8px; border-width: 2px 2px 0 0; }
-        .hud-bl { bottom: 8px; left: 8px; border-width: 0 0 2px 2px; }
-        .hud-br { bottom: 8px; right: 8px; border-width: 0 2px 2px 0; }
+        .bracket-tl { top: 10px; left: 10px; border-width: 2px 0 0 2px; }
+        .bracket-tr { top: 10px; right: 10px; border-width: 2px 2px 0 0; }
+        .bracket-bl { bottom: 10px; left: 10px; border-width: 0 0 2px 2px; }
+        .bracket-br { bottom: 10px; right: 10px; border-width: 0 2px 2px 0; }
 
-        .hud-target-reticle {
+        .hud-reticle {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 80px;
-            height: 80px;
-            border: 1px dashed rgba(0, 242, 254, 0.4);
+            width: 90px;
+            height: 90px;
+            border: 1px dashed rgba(0, 242, 254, 0.35);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
         }
 
-        .hud-target-reticle::after {
+        .hud-reticle::after {
             content: '';
             width: 6px;
             height: 6px;
-            background: var(--primary);
+            background: var(--accent-cyan);
             border-radius: 50%;
-            box-shadow: 0 0 8px var(--primary);
+            box-shadow: 0 0 10px var(--accent-cyan);
         }
 
-        /* Status & Risk Panel (Right Column) */
-        .safety-meter-card {
+        .viewport-view-switcher {
+            position: absolute;
+            bottom: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 6px;
+            background: rgba(8, 10, 15, 0.88);
+            backdrop-filter: blur(14px);
+            padding: 4px;
+            border-radius: 30px;
+            border: 1px solid var(--border-subtle);
+            z-index: 10;
+        }
+
+        .view-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .view-btn.active {
+            background: rgba(255, 255, 255, 0.16);
+            color: #fff;
+        }
+
+        /* Right Column: Telematics & Telemetry Dashboard */
+        .safety-gauge-wrapper {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 20px;
-            background: rgba(255, 255, 255, 0.02);
-            border-radius: var(--radius-md);
-            border: 1px solid var(--border-glass);
+            padding: 22px;
+            background: rgba(255, 255, 255, 0.025);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-subtle);
             margin-bottom: 20px;
         }
 
-        .radial-meter {
+        .radial-gauge-container {
             position: relative;
-            width: 100px;
-            height: 100px;
+            width: 108px;
+            height: 108px;
         }
 
-        .radial-svg {
+        .gauge-svg {
             transform: rotate(-90deg);
-            width: 100px;
-            height: 100px;
+            width: 108px;
+            height: 108px;
         }
 
-        .radial-bg {
+        .gauge-track {
             fill: none;
             stroke: rgba(255, 255, 255, 0.06);
-            stroke-width: 8;
+            stroke-width: 9;
         }
 
-        .radial-progress {
+        .gauge-indicator {
             fill: none;
-            stroke-width: 8;
+            stroke-width: 9;
             stroke-linecap: round;
-            transition: stroke-dashoffset 0.8s ease, stroke 0.4s;
+            transition: stroke-dashoffset 0.8s ease, stroke 0.4s ease;
         }
 
-        .radial-value {
+        .gauge-center-text {
             position: absolute;
             inset: 0;
             display: flex;
@@ -965,196 +939,195 @@ HTML_DASHBOARD = """
             align-items: center;
             justify-content: center;
             font-family: 'JetBrains Mono', monospace;
-            font-size: 22px;
-            font-weight: 700;
+            font-size: 24px;
+            font-weight: 800;
         }
 
-        .radial-label {
+        .gauge-unit {
             font-size: 9px;
             text-transform: uppercase;
-            color: var(--text-muted);
-            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            letter-spacing: 0.8px;
         }
 
-        .safety-details {
+        .gauge-meta-content {
             flex: 1;
-            margin-left: 20px;
+            margin-left: 22px;
         }
 
-        .safety-badge {
+        .status-pill-badge {
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            padding: 4px 12px;
+            padding: 5px 14px;
             border-radius: 30px;
             font-size: 11px;
-            font-weight: 700;
+            font-weight: 800;
             text-transform: uppercase;
             letter-spacing: 1px;
-            margin-bottom: 6px;
+            margin-bottom: 8px;
         }
 
-        .safety-title {
-            font-size: 18px;
-            font-weight: 700;
-            color: var(--text-main);
+        .status-hero-headline {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--text-primary);
         }
 
-        /* Primary Detection Box */
-        .primary-alert-box {
-            padding: 18px;
-            border-radius: var(--radius-md);
+        /* Detection Spotlight Card */
+        .spotlight-card {
+            padding: 20px;
+            border-radius: var(--radius-lg);
             background: rgba(255, 255, 255, 0.03);
-            border: 1px solid var(--border-glass);
+            border: 1px solid var(--border-subtle);
             margin-bottom: 20px;
         }
 
-        .alert-top {
+        .spotlight-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
             margin-bottom: 10px;
         }
 
-        .detection-name {
+        .spotlight-behavior {
             font-size: 20px;
-            font-weight: 700;
+            font-weight: 800;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
         }
 
-        .confidence-pill {
+        .confidence-tag {
             font-family: 'JetBrains Mono', monospace;
             font-size: 16px;
-            font-weight: 700;
+            font-weight: 800;
             background: rgba(0, 242, 254, 0.1);
-            color: var(--primary);
-            padding: 4px 10px;
+            color: var(--accent-cyan);
+            padding: 5px 12px;
             border-radius: 8px;
             border: 1px solid rgba(0, 242, 254, 0.3);
         }
 
-        .detection-desc {
+        .spotlight-narrative {
             font-size: 13px;
-            color: var(--text-muted);
-            line-height: 1.5;
-            margin-bottom: 12px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 14px;
         }
 
-        .directive-box {
-            background: rgba(0, 0, 0, 0.35);
-            border-left: 3px solid var(--primary);
-            padding: 10px 14px;
-            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-            font-size: 12px;
-            color: #d1dbe6;
+        .action-directive-callout {
+            background: rgba(0, 0, 0, 0.4);
+            border-left: 3px solid var(--accent-cyan);
+            padding: 12px 16px;
+            border-radius: 0 var(--radius-md) var(--radius-md) 0;
+            font-size: 13px;
+            color: #e2e8f0;
             display: flex;
             align-items: flex-start;
-            gap: 8px;
+            gap: 10px;
         }
 
-        /* Distraction Triad Metrics */
-        .triad-grid {
+        /* Triad Metrics */
+        .distraction-triad-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
+            gap: 12px;
             margin-bottom: 20px;
         }
 
-        .triad-card {
+        .triad-box {
             background: rgba(255, 255, 255, 0.02);
-            border: 1px solid var(--border-glass);
-            border-radius: var(--radius-sm);
-            padding: 12px 10px;
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 14px 10px;
             text-align: center;
         }
 
-        .triad-name {
+        .triad-type {
             font-size: 11px;
-            color: var(--text-muted);
+            color: var(--text-tertiary);
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            font-weight: 700;
+            letter-spacing: 0.6px;
             margin-bottom: 6px;
         }
 
-        .triad-val {
+        .triad-percentage {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 16px;
-            font-weight: 700;
-            color: var(--text-main);
+            font-size: 17px;
+            font-weight: 800;
         }
 
-        /* Probability Bars */
-        .prob-section-title {
+        /* Class Distribution Breakdown */
+        .distribution-heading {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            margin-bottom: 14px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .distribution-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .distribution-row {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .distribution-meta {
+            display: flex;
+            justify-content: space-between;
             font-size: 13px;
             font-weight: 600;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 12px;
-            display: flex;
-            justify-content: space-between;
         }
 
-        .prob-list {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .prob-item {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .prob-meta {
-            display: flex;
-            justify-content: space-between;
-            font-size: 12px;
-            font-weight: 500;
-        }
-
-        .prob-track {
-            height: 6px;
+        .distribution-bar-track {
+            height: 7px;
             background: rgba(255, 255, 255, 0.06);
-            border-radius: 3px;
+            border-radius: 4px;
             overflow: hidden;
         }
 
-        .prob-fill {
+        .distribution-bar-fill {
             height: 100%;
-            background: var(--primary-gradient);
-            border-radius: 3px;
+            border-radius: 4px;
             transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        /* Live Camera HUD */
-        .camera-viewport {
+        /* Live Dashcam Streaming HUD */
+        .dashcam-stream-stage {
             width: 100%;
-            max-width: 720px;
+            max-width: 800px;
             margin: 0 auto;
-            border-radius: var(--radius-lg);
+            border-radius: var(--radius-xl);
             position: relative;
             background: #000;
-            border: 1px solid var(--border-glass);
-            box-shadow: var(--shadow-hud);
+            border: 1px solid var(--border-subtle);
+            box-shadow: var(--shadow-glass);
             overflow: hidden;
         }
 
-        #webcamVideo {
+        #dashcamVideoFeed {
             width: 100%;
             height: auto;
             display: block;
-            transform: scaleX(-1); /* mirror */
+            transform: scaleX(-1);
         }
 
-        .camera-overlay-hud {
+        .dashcam-hud-header {
             position: absolute;
-            top: 14px;
-            left: 14px;
-            right: 14px;
+            top: 16px;
+            left: 16px;
+            right: 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -1162,11 +1135,11 @@ HTML_DASHBOARD = """
             pointer-events: none;
         }
 
-        .cam-status-pill {
-            background: rgba(10, 13, 20, 0.85);
-            backdrop-filter: blur(10px);
-            border: 1px solid var(--border-glass);
-            padding: 6px 14px;
+        .hud-status-chip {
+            background: rgba(8, 10, 15, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-subtle);
+            padding: 6px 16px;
             border-radius: 20px;
             font-family: 'JetBrains Mono', monospace;
             font-size: 12px;
@@ -1176,29 +1149,50 @@ HTML_DASHBOARD = """
             gap: 8px;
         }
 
-        .live-rec-dot {
+        .rec-flasher {
             width: 8px;
             height: 8px;
             background: #ff1744;
             border-radius: 50%;
-            box-shadow: 0 0 10px #ff1744;
-            animation: pulse-dot 1.2s infinite;
+            box-shadow: 0 0 12px #ff1744;
+            animation: pulseGlow 1.2s infinite;
         }
 
-        .camera-controls-bar {
+        .dashcam-action-row {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 14px;
-            margin-top: 18px;
+            gap: 16px;
+            margin-top: 22px;
         }
 
-        .btn-action {
-            background: var(--primary-gradient);
-            color: #0a0d14;
+        .btn-launch {
+            background: var(--grad-primary);
+            color: #080a0f;
             border: none;
-            padding: 12px 24px;
-            border-radius: 12px;
+            padding: 14px 28px;
+            border-radius: var(--radius-md);
+            font-weight: 800;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.2s ease;
+            box-shadow: 0 6px 22px rgba(0, 242, 254, 0.3);
+        }
+
+        .btn-launch:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 242, 254, 0.45);
+        }
+
+        .btn-alt {
+            background: rgba(255, 255, 255, 0.06);
+            color: #fff;
+            border: 1px solid var(--border-subtle);
+            padding: 14px 24px;
+            border-radius: var(--radius-md);
             font-weight: 700;
             font-size: 14px;
             cursor: pointer;
@@ -1206,106 +1200,84 @@ HTML_DASHBOARD = """
             align-items: center;
             gap: 8px;
             transition: all 0.2s ease;
-            box-shadow: 0 6px 20px rgba(0, 242, 254, 0.25);
         }
 
-        .btn-action:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 242, 254, 0.4);
-        }
-
-        .btn-secondary {
-            background: rgba(255, 255, 255, 0.06);
-            color: #fff;
-            border: 1px solid var(--border-glass);
-            padding: 12px 20px;
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: 14px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.2s ease;
-        }
-
-        .btn-secondary:hover {
+        .btn-alt:hover {
             background: rgba(255, 255, 255, 0.12);
         }
 
-        /* Audit Trail Table */
-        .table-responsive {
+        /* Fleet Audit Trail */
+        .log-table-container {
             overflow-x: auto;
-            margin-top: 14px;
+            margin-top: 16px;
         }
 
-        .audit-table {
+        .fleet-table {
             width: 100%;
             border-collapse: collapse;
             font-size: 13px;
         }
 
-        .audit-table th {
+        .fleet-table th {
             text-align: left;
-            padding: 12px 16px;
+            padding: 14px 18px;
             background: rgba(255, 255, 255, 0.02);
-            color: var(--text-muted);
-            font-weight: 600;
+            color: var(--text-tertiary);
+            font-weight: 700;
             text-transform: uppercase;
             font-size: 11px;
-            letter-spacing: 1px;
-            border-bottom: 1px solid var(--border-glass);
+            letter-spacing: 1.2px;
+            border-bottom: 1px solid var(--border-subtle);
         }
 
-        .audit-table td {
-            padding: 12px 16px;
-            border-bottom: 1px solid var(--border-glass);
-            color: var(--text-main);
+        .fleet-table td {
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border-subtle);
+            color: var(--text-primary);
         }
 
-        .audit-table tr:hover td {
+        .fleet-table tr:hover td {
             background: rgba(255, 255, 255, 0.02);
         }
 
-        .audit-thumb {
-            width: 44px;
-            height: 34px;
+        .log-thumbnail {
+            width: 48px;
+            height: 36px;
             object-fit: cover;
             border-radius: 6px;
-            border: 1px solid var(--border-glass);
+            border: 1px solid var(--border-subtle);
         }
 
         /* Loading Spinner */
-        .spinner-overlay {
+        .loader-backdrop {
             position: absolute;
             inset: 0;
-            background: rgba(10, 13, 20, 0.8);
-            backdrop-filter: blur(8px);
+            background: rgba(8, 10, 15, 0.85);
+            backdrop-filter: blur(10px);
             display: none;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             z-index: 50;
-            border-radius: var(--radius-lg);
+            border-radius: var(--radius-xl);
         }
 
-        .spinner-ring {
-            width: 50px;
-            height: 50px;
-            border: 3px solid rgba(0, 242, 254, 0.2);
-            border-top: 3px solid var(--primary);
+        .loader-orbit {
+            width: 52px;
+            height: 52px;
+            border: 3px solid rgba(0, 242, 254, 0.18);
+            border-top: 3px solid var(--accent-cyan);
             border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin-bottom: 14px;
+            animation: spinOrbit 0.8s linear infinite;
+            margin-bottom: 16px;
         }
 
-        @keyframes spin {
+        @keyframes spinOrbit {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
 
-        /* Hidden Input */
-        #hiddenFileInput {
+        #filePickerInput {
             display: none;
         }
     </style>
@@ -1314,194 +1286,194 @@ HTML_DASHBOARD = """
 
     <!-- Header Navigation -->
     <header>
-        <div class="brand">
-            <div class="brand-logo">
-                <i class="fa-solid fa-eye"></i>
+        <div class="brand-container">
+            <div class="brand-shield">
+                <i class="fa-solid fa-shield-halved"></i>
             </div>
             <div>
-                <div class="brand-title">AegisEye DMS</div>
-                <div class="brand-tag">Deep Learning Driver Telematics</div>
+                <div class="brand-name">DriverGuard AI</div>
+                <div class="brand-subtitle">Intelligent In-Cabin Safety & Telematics</div>
             </div>
         </div>
 
-        <div class="tab-bar">
-            <button class="tab-btn active" onclick="switchTab('inspector')">
-                <i class="fa-solid fa-magnifying-glass-chart"></i> Safety Inspector
+        <nav class="tab-nav">
+            <button class="tab-item active" onclick="activateTab('inspector')">
+                <i class="fa-solid fa-microscope"></i> Safety Inspector
             </button>
-            <button class="tab-btn" onclick="switchTab('dashcam')">
+            <button class="tab-item" onclick="activateTab('dashcam')">
                 <i class="fa-solid fa-video"></i> Live AI Dashcam
             </button>
-            <button class="tab-btn" onclick="switchTab('audit')">
-                <i class="fa-solid fa-clipboard-list"></i> Fleet Audit Log
+            <button class="tab-item" onclick="activateTab('audit')">
+                <i class="fa-solid fa-chart-line"></i> Fleet Audit Trail
             </button>
-            <button class="tab-btn" onclick="switchTab('specs')">
-                <i class="fa-solid fa-microchip"></i> Model Architecture
+            <button class="tab-item" onclick="activateTab('specs')">
+                <i class="fa-solid fa-brain"></i> Neural Core Specs
             </button>
-        </div>
+        </nav>
 
-        <div class="header-telemetry">
-            <div class="tele-badge">
-                <div class="tele-dot"></div>
-                <span id="engineStatus">EfficientNet-B0 Online</span>
+        <div class="telemetry-status-box">
+            <div class="live-indicator">
+                <div class="live-pulse"></div>
+                <span id="neuralEngineLabel">EfficientNet-B0 Online</span>
             </div>
         </div>
     </header>
 
-    <main class="main-container">
+    <main class="main-wrapper">
 
-        <!-- TAB 1: SAFETY INSPECTOR (Image Mode) -->
-        <section id="inspectorTab" class="view-section active">
-            <div class="inspector-grid">
+        <!-- TAB 1: SAFETY INSPECTOR -->
+        <section id="paneInspector" class="tab-pane active">
+            <div class="inspector-layout">
                 
-                <!-- Left: Upload, Presets & Viewport -->
-                <div class="glass-card">
-                    <div class="card-header">
-                        <div class="card-title">
-                            <i class="fa-solid fa-camera"></i> Driver Frame Input & Visualizer
+                <!-- Left: Upload, Scenarios & Viewport -->
+                <div class="glass-panel">
+                    <div class="panel-heading">
+                        <div class="panel-title">
+                            <i class="fa-solid fa-camera-viewfinder"></i> Driver Frame Analyzer
                         </div>
-                        <div class="tele-badge" style="font-size: 11px;">
-                            <span id="ttaStatus">TTA 3-Crop Ensembling</span>
+                        <div class="live-indicator" style="font-size: 11px;">
+                            <span>3-Crop TTA Ensembling Active</span>
                         </div>
                     </div>
 
                     <!-- Dropzone -->
-                    <div class="dropzone-box" id="dropzone" onclick="document.getElementById('hiddenFileInput').click()">
-                        <i class="fa-solid fa-cloud-arrow-up dropzone-icon"></i>
-                        <div class="dropzone-text">Click to upload driver image or drag & drop</div>
-                        <div class="dropzone-sub">Supports JPG, PNG, WEBP (Smartphone & Dashcam photos) • Paste with Ctrl+V</div>
-                        <input type="file" id="hiddenFileInput" accept="image/*" onchange="handleFileSelect(event)">
+                    <div class="upload-dropzone" id="uploadDropzone" onclick="document.getElementById('filePickerInput').click()">
+                        <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
+                        <div class="upload-title">Drop driver photo here or click to browse</div>
+                        <div class="upload-hint">Dashcam, smartphone, or cabin CCTV images • Paste directly with Ctrl+V</div>
+                        <input type="file" id="filePickerInput" accept="image/*" onchange="onFileChosen(event)">
                     </div>
 
-                    <!-- Presets Strip -->
-                    <div class="presets-strip">
-                        <div class="presets-label">
-                            <i class="fa-solid fa-bolt"></i> One-Click Real Driving Scenarios:
+                    <!-- Realistic Driving Scenarios -->
+                    <div class="scenarios-container">
+                        <div class="scenarios-title">
+                            <i class="fa-solid fa-bolt"></i> One-Click Real Driving Presets:
                         </div>
-                        <div class="preset-chips">
-                            <button class="preset-chip" onclick="loadSampleScenario('safe_driving.jpg', 'Safe Driving')">
+                        <div class="scenario-grid">
+                            <button class="scenario-card" onclick="loadPresetImage('safe_driving.jpg', 'Safe Driving')">
                                 <i class="fa-solid fa-shield-check" style="color: #00e676;"></i> Safe Driving
                             </button>
-                            <button class="preset-chip" onclick="loadSampleScenario('texting_right.jpg', 'Texting (Right Hand)')">
+                            <button class="scenario-card" onclick="loadPresetImage('texting_right.jpg', 'Texting (Right Hand)')">
                                 <i class="fa-solid fa-mobile-screen" style="color: #ff1744;"></i> Texting Right
                             </button>
-                            <button class="preset-chip" onclick="loadSampleScenario('phone_talk_right.jpg', 'Phone Call (Right Ear)')">
-                                <i class="fa-solid fa-phone" style="color: #ff5252;"></i> Phone Call
+                            <button class="scenario-card" onclick="loadPresetImage('phone_talk_right.jpg', 'Talking on Phone')">
+                                <i class="fa-solid fa-phone-volume" style="color: #ff5252;"></i> Phone Call
                             </button>
-                            <button class="preset-chip" onclick="loadSampleScenario('drinking_cup.jpg', 'Drinking Beverage')">
-                                <i class="fa-solid fa-mug-hot" style="color: #ffab00;"></i> Drinking Coffee
+                            <button class="scenario-card" onclick="loadPresetImage('drinking_cup.jpg', 'Drinking Beverage')">
+                                <i class="fa-solid fa-mug-hot" style="color: #ffab00;"></i> Drinking Cup
                             </button>
-                            <button class="preset-chip" onclick="loadSampleScenario('operating_radio.jpg', 'Operating Dashboard')">
-                                <i class="fa-solid fa-sliders" style="color: #ff9100;"></i> Dashboard / Radio
+                            <button class="scenario-card" onclick="loadPresetImage('operating_radio.jpg', 'Radio / Console')">
+                                <i class="fa-solid fa-sliders" style="color: #ff9100;"></i> Radio Console
                             </button>
-                            <button class="preset-chip" onclick="loadSampleScenario('talking_passenger.jpg', 'Talking to Passenger')">
+                            <button class="scenario-card" onclick="loadPresetImage('talking_passenger.jpg', 'Talking to Passenger')">
                                 <i class="fa-solid fa-comments" style="color: #ffd600;"></i> Passenger Chat
                             </button>
                         </div>
                     </div>
 
-                    <!-- Viewport Canvas & HUD -->
-                    <div class="viewport-container" id="viewportBox">
-                        <img id="displayImg" class="viewport-img" src="/static/samples/safe_driving.jpg" alt="Driver Frame">
+                    <!-- Viewport Screen & HUD -->
+                    <div class="viewport-screen" id="viewportScreen">
+                        <img id="activeViewportImg" class="viewport-media" src="/static/samples/safe_driving.jpg" alt="Driver Analysis">
                         
-                        <!-- HUD Crosshairs -->
-                        <div class="hud-scanner">
-                            <div class="hud-corner hud-tl"></div>
-                            <div class="hud-corner hud-tr"></div>
-                            <div class="hud-corner hud-bl"></div>
-                            <div class="hud-corner hud-br"></div>
-                            <div class="hud-target-reticle"></div>
+                        <!-- HUD Reticle -->
+                        <div class="hud-overlay">
+                            <div class="hud-corner-bracket bracket-tl"></div>
+                            <div class="hud-corner-bracket bracket-tr"></div>
+                            <div class="hud-corner-bracket bracket-bl"></div>
+                            <div class="hud-corner-bracket bracket-br"></div>
+                            <div class="hud-reticle"></div>
                         </div>
 
                         <!-- View Controls -->
-                        <div class="view-controls">
-                            <button class="view-toggle-btn active" id="btnViewOrig" onclick="setViewMode('original')">Original</button>
-                            <button class="view-toggle-btn" id="btnViewCam" onclick="setViewMode('gradcam')">Grad-CAM Focus</button>
+                        <div class="viewport-view-switcher">
+                            <button class="view-btn active" id="btnOrigView" onclick="toggleViewMode('original')">Original Frame</button>
+                            <button class="view-btn" id="btnCamView" onclick="toggleViewMode('gradcam')">Grad-CAM Focus</button>
                         </div>
 
-                        <!-- Loading Spinner -->
-                        <div class="spinner-overlay" id="loadingOverlay">
-                            <div class="spinner-ring"></div>
-                            <div style="font-weight: 600; font-size: 14px;">Analyzing Neural Telematics...</div>
-                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Computing TTA & Grad-CAM Attention Heatmap</div>
+                        <!-- Loading Overlay -->
+                        <div class="loader-backdrop" id="loaderOverlay">
+                            <div class="loader-orbit"></div>
+                            <div style="font-weight: 700; font-size: 15px;">Executing DriverGuard Neural Telematics...</div>
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Computing TTA Multi-Crop & Grad-CAM Visual Heatmap</div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Right: Telematics & Telemetry Insights -->
-                <div class="glass-card">
-                    <div class="card-header">
-                        <div class="card-title">
-                            <i class="fa-solid fa-gauge-high"></i> Real-Time Telematics & Risk Index
+                <!-- Right: Telematics Metrics & Behavior Analysis -->
+                <div class="glass-panel">
+                    <div class="panel-heading">
+                        <div class="panel-title">
+                            <i class="fa-solid fa-gauge-high"></i> In-Cabin Telematics Risk Index
                         </div>
-                        <div class="tele-badge" id="latencyTicker" style="font-size: 11px;">
-                            Latency: 24.5 ms
+                        <div class="live-indicator" id="latencyIndicator" style="font-size: 11px;">
+                            Latency: 22.4 ms
                         </div>
                     </div>
 
-                    <!-- Safety Score Gauge -->
-                    <div class="safety-meter-card">
-                        <div class="radial-meter">
-                            <svg class="radial-svg" viewBox="0 0 100 100">
-                                <circle class="radial-bg" cx="50" cy="50" r="40"></circle>
-                                <circle id="radialProgress" class="radial-progress" cx="50" cy="50" r="40" 
+                    <!-- Driver Safety Score Radial Gauge -->
+                    <div class="safety-gauge-wrapper">
+                        <div class="radial-gauge-container">
+                            <svg class="gauge-svg" viewBox="0 0 100 100">
+                                <circle class="gauge-track" cx="50" cy="50" r="40"></circle>
+                                <circle id="gaugeProgressArc" class="gauge-indicator" cx="50" cy="50" r="40" 
                                         stroke="#00e676" stroke-dasharray="251.2" stroke-dashoffset="25.1"></circle>
                             </svg>
-                            <div class="radial-value">
-                                <span id="safetyScoreNum">95</span>
-                                <span class="radial-label">Score</span>
+                            <div class="gauge-center-text">
+                                <span id="gaugeNumberVal">96</span>
+                                <span class="gauge-unit">Safety Score</span>
                             </div>
                         </div>
-                        <div class="safety-details">
-                            <div class="safety-badge" id="safetyBadge" style="background: rgba(0, 230, 118, 0.15); color: #00e676;">
-                                <i class="fa-solid fa-shield-check"></i> <span id="safetyBadgeText">Safe Driving</span>
+                        <div class="gauge-meta-content">
+                            <div class="status-pill-badge" id="safetyStatusPill" style="background: rgba(0, 230, 118, 0.15); color: #00e676;">
+                                <i class="fa-solid fa-shield-check"></i> <span id="safetyStatusPillText">Safe & Attentive</span>
                             </div>
-                            <div class="safety-title" id="safetyStatusText">Nominal Driver Attention</div>
-                            <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Zero high-risk distraction detected</div>
+                            <div class="status-hero-headline" id="safetyHeroTitle">Nominal Driver Attention</div>
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Zero high-risk distraction detected</div>
                         </div>
                     </div>
 
-                    <!-- Primary Classification Alert -->
-                    <div class="primary-alert-box" id="primaryBox">
-                        <div class="alert-top">
-                            <div class="detection-name">
-                                <i class="fa-solid fa-shield-check" id="primaryIcon" style="color: #00e676;"></i>
-                                <span id="primaryTitle">Safe driving</span>
+                    <!-- Primary Detection Spotlight -->
+                    <div class="spotlight-card">
+                        <div class="spotlight-header">
+                            <div class="spotlight-behavior">
+                                <i class="fa-solid fa-shield-check" id="spotlightIcon" style="color: #00e676;"></i>
+                                <span id="spotlightTitle">Safe & Attentive Driving</span>
                             </div>
-                            <div class="confidence-pill" id="primaryConfidence">98.4%</div>
+                            <div class="confidence-tag" id="spotlightConf">98.5%</div>
                         </div>
-                        <div class="detection-desc" id="primaryDesc">
-                            Driver is actively focused on the roadway with hands properly positioned on steering wheel.
+                        <div class="spotlight-narrative" id="spotlightDesc">
+                            Driver is actively focused on the forward roadway with both hands properly positioned on steering wheel.
                         </div>
-                        <div class="directive-box">
-                            <i class="fa-solid fa-circle-info" style="color: var(--primary); margin-top: 2px;"></i>
-                            <div><strong>Advisory Directive:</strong> <span id="primaryDirective">Maintain standard scanning techniques and safe following distances.</span></div>
+                        <div class="action-directive-callout">
+                            <i class="fa-solid fa-circle-info" style="color: var(--accent-cyan); margin-top: 2px;"></i>
+                            <div><strong>Advisory Directive:</strong> <span id="spotlightDirective">Optimal posture maintained. Continue standard highway scanning techniques.</span></div>
                         </div>
                     </div>
 
                     <!-- Distraction Triad -->
-                    <div class="triad-grid">
-                        <div class="triad-card">
-                            <div class="triad-name"><i class="fa-solid fa-eye"></i> Visual</div>
-                            <div class="triad-val" id="visualVal" style="color: #00e676;">5%</div>
+                    <div class="distraction-triad-grid">
+                        <div class="triad-box">
+                            <div class="triad-type"><i class="fa-solid fa-eye"></i> Visual</div>
+                            <div class="triad-percentage" id="triadVisual" style="color: #00e676;">4%</div>
                         </div>
-                        <div class="triad-card">
-                            <div class="triad-name"><i class="fa-solid fa-hand"></i> Manual</div>
-                            <div class="triad-val" id="manualVal" style="color: #00e676;">5%</div>
+                        <div class="triad-box">
+                            <div class="triad-type"><i class="fa-solid fa-hand"></i> Manual</div>
+                            <div class="triad-percentage" id="triadManual" style="color: #00e676;">5%</div>
                         </div>
-                        <div class="triad-card">
-                            <div class="triad-name"><i class="fa-solid fa-brain"></i> Cognitive</div>
-                            <div class="triad-val" id="cognitiveVal" style="color: #00e676;">5%</div>
+                        <div class="triad-box">
+                            <div class="triad-type"><i class="fa-solid fa-brain"></i> Cognitive</div>
+                            <div class="triad-percentage" id="triadCognitive" style="color: #00e676;">5%</div>
                         </div>
                     </div>
 
-                    <!-- Probability Distribution Breakdown -->
-                    <div class="prob-section-title">
+                    <!-- Class Probability Breakdown -->
+                    <div class="distribution-heading">
                         <span>Top Class Probabilities</span>
-                        <span style="font-family: 'JetBrains Mono'; font-size: 11px;">Softmax Ensemble</span>
+                        <span style="font-family: 'JetBrains Mono'; font-size: 11px;">Softmax Calibrated</span>
                     </div>
 
-                    <div class="prob-list" id="probListContainer">
-                        <!-- Dynamic Probability Bars -->
+                    <div class="distribution-list" id="distributionContainer">
+                        <!-- Dynamic Probability Rows -->
                     </div>
 
                 </div>
@@ -1509,73 +1481,72 @@ HTML_DASHBOARD = """
             </div>
         </section>
 
-        <!-- TAB 2: LIVE AI DASHCAM (Webcam Streaming) -->
-        <section id="dashcamTab" class="view-section">
-            <div class="glass-card" style="text-align: center; max-width: 860px; margin: 0 auto;">
-                <div class="card-header">
-                    <div class="card-title">
-                        <i class="fa-solid fa-video"></i> Real-Time AI Cabin Dashcam Stream
+        <!-- TAB 2: LIVE AI DASHCAM -->
+        <section id="paneDashcam" class="tab-pane">
+            <div class="glass-panel" style="text-align: center; max-width: 860px; margin: 0 auto;">
+                <div class="panel-heading">
+                    <div class="panel-title">
+                        <i class="fa-solid fa-video"></i> Live AI In-Cabin Dashcam Monitor
                     </div>
-                    <div class="tele-badge">
-                        <span id="streamFps">0.0 FPS</span>
+                    <div class="live-indicator">
+                        <span id="liveFpsTicker">0.0 FPS</span>
                     </div>
                 </div>
 
-                <div class="camera-viewport">
-                    <video id="webcamVideo" autoplay playsinline muted></video>
-                    <canvas id="streamCanvas" style="display: none;"></canvas>
+                <div class="dashcam-stream-stage">
+                    <video id="dashcamVideoFeed" autoplay playsinline muted></video>
+                    <canvas id="hiddenStreamCanvas" style="display: none;"></canvas>
 
                     <!-- Real-time HUD Status -->
-                    <div class="camera-overlay-hud">
-                        <div class="cam-status-pill">
-                            <div class="live-rec-dot" id="recDot"></div>
-                            <span id="camStatusText">DMS Active</span>
+                    <div class="dashcam-hud-header">
+                        <div class="hud-status-chip">
+                            <div class="rec-flasher" id="recDotFlasher"></div>
+                            <span id="streamStateText">DriverGuard Active</span>
                         </div>
-                        <div class="cam-status-pill" id="liveAlertPill" style="background: rgba(0, 230, 118, 0.2); color: #00e676;">
-                            <i class="fa-solid fa-shield-check"></i> <span id="liveDetectionLabel">Safe Driving</span>
+                        <div class="hud-status-chip" id="streamAlertChip" style="background: rgba(0, 230, 118, 0.2); color: #00e676;">
+                            <i class="fa-solid fa-shield-check"></i> <span id="streamBehaviorLabel">Safe Driving</span>
                         </div>
                     </div>
 
-                    <!-- Reticle -->
-                    <div class="hud-scanner">
-                        <div class="hud-corner hud-tl"></div>
-                        <div class="hud-corner hud-tr"></div>
-                        <div class="hud-corner hud-bl"></div>
-                        <div class="hud-corner hud-br"></div>
-                        <div class="hud-target-reticle"></div>
+                    <div class="hud-overlay">
+                        <div class="hud-corner-bracket bracket-tl"></div>
+                        <div class="hud-corner-bracket bracket-tr"></div>
+                        <div class="hud-corner-bracket bracket-bl"></div>
+                        <div class="hud-corner-bracket bracket-br"></div>
+                        <div class="hud-reticle"></div>
                     </div>
                 </div>
 
-                <!-- Controls Bar -->
-                <div class="camera-controls-bar">
-                    <button class="btn-action" id="btnToggleCam" onclick="toggleWebcam()">
-                        <i class="fa-solid fa-camera"></i> <span id="camBtnText">Start AI Dashcam</span>
+                <!-- Controls -->
+                <div class="dashcam-action-row">
+                    <button class="btn-launch" id="btnToggleStream" onclick="handleStreamToggle()">
+                        <i class="fa-solid fa-camera"></i> <span id="streamToggleLabel">Start AI Dashcam</span>
                     </button>
-                    <button class="btn-secondary" id="btnToggleAudio" onclick="toggleAudioAlerts()">
-                        <i class="fa-solid fa-volume-high" id="audioIcon"></i> <span id="audioBtnText">Alert Chime: ON</span>
+                    <button class="btn-alt" id="btnToggleAlarm" onclick="handleAlarmToggle()">
+                        <i class="fa-solid fa-volume-high" id="alarmIcon"></i> <span id="alarmToggleLabel">Alert Chime: ON</span>
                     </button>
                 </div>
 
-                <div style="margin-top: 16px; font-size: 12px; color: var(--text-muted);">
-                    Frames are analyzed live using ultra-low latency inference with real-time acoustic danger warnings.
+                <div style="margin-top: 18px; font-size: 13px; color: var(--text-secondary);">
+                    Real-time in-cabin frame analysis with low-latency neural inference and acoustic alert warnings.
                 </div>
             </div>
         </section>
 
-        <!-- TAB 3: FLEET AUDIT LOG -->
-        <section id="auditTab" class="view-section">
-            <div class="glass-card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <i class="fa-solid fa-clipboard-list"></i> Driver Telematics Event Log & Audit Trail
+        <!-- TAB 3: FLEET AUDIT TRAIL -->
+        <section id="paneAudit" class="tab-pane">
+            <div class="glass-panel">
+                <div class="panel-heading">
+                    <div class="panel-title">
+                        <i class="fa-solid fa-chart-line"></i> Fleet Telematics Audit Trail & Event Logs
                     </div>
-                    <button class="btn-secondary" onclick="exportAuditJSON()" style="padding: 6px 14px; font-size: 12px;">
+                    <button class="btn-alt" onclick="downloadAuditJSON()" style="padding: 8px 18px; font-size: 12px;">
                         <i class="fa-solid fa-download"></i> Export Telematics JSON
                     </button>
                 </div>
 
-                <div class="table-responsive">
-                    <table class="audit-table">
+                <div class="log-table-container">
+                    <table class="fleet-table">
                         <thead>
                             <tr>
                                 <th>Timestamp</th>
@@ -1584,10 +1555,10 @@ HTML_DASHBOARD = """
                                 <th>Category</th>
                                 <th>Confidence</th>
                                 <th>Safety Score</th>
-                                <th>Risk Status</th>
+                                <th>Status</th>
                             </tr>
                         </thead>
-                        <tbody id="auditTableBody">
+                        <tbody id="fleetLogTableBody">
                             <!-- Dynamic log rows -->
                         </tbody>
                     </table>
@@ -1595,43 +1566,43 @@ HTML_DASHBOARD = """
             </div>
         </section>
 
-        <!-- TAB 4: MODEL ARCHITECTURE & SPECS -->
-        <section id="specsTab" class="view-section">
-            <div class="glass-card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <i class="fa-solid fa-microchip"></i> System Architecture & Neural Backbone Specs
+        <!-- TAB 4: NEURAL CORE SPECS -->
+        <section id="paneSpecs" class="tab-pane">
+            <div class="glass-panel">
+                <div class="panel-heading">
+                    <div class="panel-title">
+                        <i class="fa-solid fa-brain"></i> DriverGuard AI Neural Backbone Architecture
                     </div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 10px;">
-                    <div class="primary-alert-box">
-                        <div style="font-weight: 700; color: var(--primary); margin-bottom: 6px;"><i class="fa-solid fa-network-wired"></i> Model Backbone</div>
-                        <div style="font-size: 13px; color: #cfd9df; line-height: 1.6;">
-                            • EfficientNet-B0 (4.38M parameters)<br>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 18px; margin-top: 12px;">
+                    <div class="spotlight-card">
+                        <div style="font-weight: 800; color: var(--accent-cyan); margin-bottom: 8px;"><i class="fa-solid fa-network-wired"></i> Model Backbone</div>
+                        <div style="font-size: 13px; color: #cbd5e1; line-height: 1.7;">
+                            • EfficientNet-B0 (4,385,197 parameters)<br>
                             • GlobalAveragePooling2D + BatchNorm + Dropout(0.5)<br>
                             • Dense(256, ReLU) + Dense(10, Softmax)<br>
-                            • Kaggle State Farm Distracted Driver Dataset
+                            • State Farm Distracted Driver Dataset
                         </div>
                     </div>
 
-                    <div class="primary-alert-box">
-                        <div style="font-weight: 700; color: var(--safe-color); margin-bottom: 6px;"><i class="fa-solid fa-bullseye"></i> Accuracy Enhancements</div>
-                        <div style="font-size: 13px; color: #cfd9df; line-height: 1.6;">
-                            • Aspect-Preserved Reflective Letterbox<br>
+                    <div class="spotlight-card">
+                        <div style="font-weight: 800; color: var(--color-safe); margin-bottom: 8px;"><i class="fa-solid fa-crosshairs"></i> Precision Enhancements</div>
+                        <div style="font-size: 13px; color: #cbd5e1; line-height: 1.7;">
+                            • Aspect-Preserved Vehicle Cabin Letterbox<br>
                             • 3-Crop Test-Time Augmentation (TTA)<br>
                             • Temperature-Scaled Softmax Calibration<br>
-                            • Auto-Orientation EXIF Normalizer
+                            • EXIF Auto-Orientation Normalization
                         </div>
                     </div>
 
-                    <div class="primary-alert-box">
-                        <div style="font-weight: 700; color: var(--warning-color); margin-bottom: 6px;"><i class="fa-solid fa-lightbulb"></i> Explainability (XAI)</div>
-                        <div style="font-size: 13px; color: #cfd9df; line-height: 1.6;">
+                    <div class="spotlight-card">
+                        <div style="font-weight: 800; color: var(--color-warning); margin-bottom: 8px;"><i class="fa-solid fa-eye"></i> Explainable AI (XAI)</div>
+                        <div style="font-size: 13px; color: #cbd5e1; line-height: 1.7;">
                             • Real-Time Gradient-weighted CAM (Grad-CAM)<br>
-                            • Target Layer: `top_activation` (7x7x1280 feature map)<br>
-                            • Turbo Color Attention Overlay Blending<br>
-                            • Instant Visual Verification of Focal Regions
+                            • Target Layer: `top_activation` (7x7x1280)<br>
+                            • High-Contrast Turbo Attention Heatmap<br>
+                            • Visual Verification of Hand & Device Coordinates
                         </div>
                     </div>
                 </div>
@@ -1641,263 +1612,257 @@ HTML_DASHBOARD = """
     </main>
 
     <script>
-        // State Management
-        let currentResult = null;
-        let auditLogs = [];
-        let webcamRunning = false;
-        let webcamStream = null;
-        let audioAlertsEnabled = true;
-        let streamInterval = null;
-        let audioContext = null;
+        // State
+        let auditRecords = [];
+        let isStreaming = false;
+        let activeMediaStream = null;
+        let alarmAudioEnabled = true;
+        let streamTimer = null;
+        let webAudioCtx = null;
 
-        // Viewport Image Cache
-        let cachedOriginal = '/static/samples/safe_driving.jpg';
-        let cachedGradcam = null;
+        let activeOriginalImg = '/static/samples/safe_driving.jpg';
+        let activeGradcamImg = null;
 
-        // Initialize Web Audio API for Chimes/Sirens
-        function initAudio() {
-            if (!audioContext) {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        // Audio Chime Synthesizer
+        function initWebAudio() {
+            if (!webAudioCtx) {
+                webAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
             }
         }
 
-        function playDistractionChime() {
-            if (!audioAlertsEnabled) return;
+        function triggerDangerChime() {
+            if (!alarmAudioEnabled) return;
             try {
-                initAudio();
-                const osc = audioContext.createOscillator();
-                const gain = audioContext.createGain();
+                initWebAudio();
+                const osc = webAudioCtx.createOscillator();
+                const gain = webAudioCtx.createGain();
                 osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(880, audioContext.currentTime); // A5
-                osc.frequency.exponentialRampToValueAtTime(440, audioContext.currentTime + 0.25);
-                gain.gain.setValueAtTime(0.2, audioContext.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.25);
+                osc.frequency.setValueAtTime(880, webAudioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(440, webAudioCtx.currentTime + 0.28);
+                gain.gain.setValueAtTime(0.22, webAudioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, webAudioCtx.currentTime + 0.28);
                 osc.connect(gain);
-                gain.connect(audioContext.destination);
+                gain.connect(webAudioCtx.destination);
                 osc.start();
-                osc.stop(audioContext.currentTime + 0.25);
+                osc.stop(webAudioCtx.currentTime + 0.28);
             } catch (e) {
-                console.warn('Audio chime error:', e);
+                console.warn('Audio chime notice:', e);
             }
         }
 
-        function toggleAudioAlerts() {
-            audioAlertsEnabled = !audioAlertsEnabled;
-            const icon = document.getElementById('audioIcon');
-            const txt = document.getElementById('audioBtnText');
-            if (audioAlertsEnabled) {
+        function handleAlarmToggle() {
+            alarmAudioEnabled = !alarmAudioEnabled;
+            const icon = document.getElementById('alarmIcon');
+            const lbl = document.getElementById('alarmToggleLabel');
+            if (alarmAudioEnabled) {
                 icon.className = 'fa-solid fa-volume-high';
-                txt.textContent = 'Alert Chime: ON';
+                lbl.textContent = 'Alert Chime: ON';
             } else {
                 icon.className = 'fa-solid fa-volume-xmark';
-                txt.textContent = 'Alert Chime: OFF';
+                lbl.textContent = 'Alert Chime: OFF';
             }
         }
 
-        // Tab Navigation
-        function switchTab(tabName) {
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
+        // Tab Switching
+        function activateTab(tabKey) {
+            document.querySelectorAll('.tab-item').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
 
-            if (tabName === 'inspector') {
-                document.querySelectorAll('.tab-btn')[0].classList.add('active');
-                document.getElementById('inspectorTab').classList.add('active');
-            } else if (tabName === 'dashcam') {
-                document.querySelectorAll('.tab-btn')[1].classList.add('active');
-                document.getElementById('dashcamTab').classList.add('active');
-            } else if (tabName === 'audit') {
-                document.querySelectorAll('.tab-btn')[2].classList.add('active');
-                document.getElementById('auditTab').classList.add('active');
-            } else if (tabName === 'specs') {
-                document.querySelectorAll('.tab-btn')[3].classList.add('active');
-                document.getElementById('specsTab').classList.add('active');
+            if (tabKey === 'inspector') {
+                document.querySelectorAll('.tab-item')[0].classList.add('active');
+                document.getElementById('paneInspector').classList.add('active');
+            } else if (tabKey === 'dashcam') {
+                document.querySelectorAll('.tab-item')[1].classList.add('active');
+                document.getElementById('paneDashcam').classList.add('active');
+            } else if (tabKey === 'audit') {
+                document.querySelectorAll('.tab-item')[2].classList.add('active');
+                document.getElementById('paneAudit').classList.add('active');
+            } else if (tabKey === 'specs') {
+                document.querySelectorAll('.tab-item')[3].classList.add('active');
+                document.getElementById('paneSpecs').classList.add('active');
             }
         }
 
-        // View Mode Toggle (Original vs Grad-CAM)
-        function setViewMode(mode) {
-            document.getElementById('btnViewOrig').classList.remove('active');
-            document.getElementById('btnViewCam').classList.remove('active');
-            const img = document.getElementById('displayImg');
+        // View Mode Switch (Original vs Grad-CAM)
+        function toggleViewMode(mode) {
+            document.getElementById('btnOrigView').classList.remove('active');
+            document.getElementById('btnCamView').classList.remove('active');
+            const media = document.getElementById('activeViewportImg');
 
-            if (mode === 'gradcam' && cachedGradcam) {
-                document.getElementById('btnViewCam').classList.add('active');
-                img.src = 'data:image/jpeg;base64,' + cachedGradcam;
+            if (mode === 'gradcam' && activeGradcamImg) {
+                document.getElementById('btnCamView').classList.add('active');
+                media.src = 'data:image/jpeg;base64,' + activeGradcamImg;
             } else {
-                document.getElementById('btnViewOrig').classList.add('active');
-                img.src = cachedOriginal.startsWith('data:') ? cachedOriginal : (cachedOriginal.startsWith('http') || cachedOriginal.startsWith('/') ? cachedOriginal : 'data:image/jpeg;base64,' + cachedOriginal);
+                document.getElementById('btnOrigView').classList.add('active');
+                media.src = activeOriginalImg.startsWith('data:') ? activeOriginalImg : (activeOriginalImg.startsWith('http') || activeOriginalImg.startsWith('/') ? activeOriginalImg : 'data:image/jpeg;base64,' + activeOriginalImg);
             }
         }
 
-        // File Selection & Drag Drop
-        const dropzone = document.getElementById('dropzone');
-        ['dragenter', 'dragover'].forEach(name => {
-            dropzone.addEventListener(name, (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+        // Drag & Drop
+        const dropzoneEl = document.getElementById('uploadDropzone');
+        ['dragenter', 'dragover'].forEach(ev => {
+            dropzoneEl.addEventListener(ev, (e) => { e.preventDefault(); dropzoneEl.classList.add('dragover'); });
         });
-        ['dragleave', 'drop'].forEach(name => {
-            dropzone.addEventListener(name, (e) => { e.preventDefault(); dropzone.classList.remove('dragover'); });
+        ['dragleave', 'drop'].forEach(ev => {
+            dropzoneEl.addEventListener(ev, (e) => { e.preventDefault(); dropzoneEl.classList.remove('dragover'); });
         });
-        dropzone.addEventListener('drop', (e) => {
+        dropzoneEl.addEventListener('drop', (e) => {
             if (e.dataTransfer.files.length) {
-                processFile(e.dataTransfer.files[0]);
+                readAndAnalyzeFile(e.dataTransfer.files[0]);
             }
         });
 
-        // Clipboard Paste Support
+        // Clipboard Paste
         window.addEventListener('paste', (e) => {
             const items = (e.clipboardData || e.originalEvent.clipboardData).items;
             for (let item of items) {
                 if (item.type.indexOf('image') === 0) {
                     const file = item.getAsFile();
-                    processFile(file);
+                    readAndAnalyzeFile(file);
                     break;
                 }
             }
         });
 
-        function handleFileSelect(event) {
+        function onFileChosen(event) {
             if (event.target.files.length) {
-                processFile(event.target.files[0]);
+                readAndAnalyzeFile(event.target.files[0]);
             }
         }
 
-        function processFile(file) {
+        function readAndAnalyzeFile(file) {
             const reader = new FileReader();
             reader.onload = function(e) {
-                const base64Data = e.target.result.split(',')[1];
-                analyzeImagePayload(base64Data, file.name);
+                const b64 = e.target.result.split(',')[1];
+                sendInferenceRequest(b64, file.name);
             };
             reader.readAsDataURL(file);
         }
 
-        function loadSampleScenario(filename, title) {
-            showLoading(true);
+        function loadPresetImage(filename, title) {
+            setLoading(true);
             fetch('/static/samples/' + filename)
-                .then(res => res.blob())
-                .then(blob => {
+                .then(r => r.blob())
+                .then(b => {
                     const reader = new FileReader();
                     reader.onload = function(e) {
-                        const base64Data = e.target.result.split(',')[1];
-                        analyzeImagePayload(base64Data, title);
+                        const b64 = e.target.result.split(',')[1];
+                        sendInferenceRequest(b64, title);
                     };
-                    reader.readAsDataURL(blob);
+                    reader.readAsDataURL(b);
                 })
                 .catch(err => {
-                    console.error('Error loading sample:', err);
-                    showLoading(false);
+                    console.error('Preset error:', err);
+                    setLoading(false);
                 });
         }
 
-        function showLoading(show) {
-            document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
+        function setLoading(isLoading) {
+            document.getElementById('loaderOverlay').style.display = isLoading ? 'flex' : 'none';
         }
 
-        // API Prediction Request
-        function analyzeImagePayload(base64Image, sourceName = 'Uploaded Image') {
-            showLoading(true);
+        function sendInferenceRequest(base64Payload, title = 'Uploaded Image') {
+            setLoading(true);
             fetch('/api/predict', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    image: base64Image,
+                    image: base64Payload,
                     use_tta: true,
                     generate_cam: true
                 })
             })
             .then(res => res.json())
             .then(data => {
-                showLoading(false);
+                setLoading(false);
                 if (data.success) {
-                    renderPrediction(data, sourceName);
+                    updateDashboardUI(data, title);
                 } else {
-                    alert('Prediction error: ' + (data.error || 'Unknown error'));
+                    alert('Prediction Notice: ' + (data.error || 'Server error'));
                 }
             })
             .catch(err => {
-                showLoading(false);
+                setLoading(false);
                 console.error(err);
-                alert('Connection error communicating with AI server.');
+                alert('Connection issue contacting DriverGuard AI server.');
             });
         }
 
-        // Render UI with Prediction Response
-        function renderPrediction(data, sourceName = 'Frame') {
-            currentResult = data;
+        function updateDashboardUI(data, sourceTitle = 'Frame') {
             const pred = data.prediction;
             const tele = data.telematics;
 
-            // Cache images
-            cachedOriginal = 'data:image/jpeg;base64,' + data.images.original;
-            cachedGradcam = data.images.gradcam;
-            setViewMode('original');
+            activeOriginalImg = 'data:image/jpeg;base64,' + data.images.original;
+            activeGradcamImg = data.images.gradcam;
+            toggleViewMode('original');
 
-            // Update Latency
-            document.getElementById('latencyTicker').textContent = `Latency: ${tele.latency_ms} ms`;
+            // Latency
+            document.getElementById('latencyIndicator').textContent = `Latency: ${tele.latency_ms} ms`;
 
-            // Update Safety Score Gauge
+            // Safety Score Gauge
             const score = tele.safety_score;
-            document.getElementById('safetyScoreNum').textContent = score;
+            document.getElementById('gaugeNumberVal').textContent = score;
             const circumference = 251.2;
             const offset = circumference - (score / 100) * circumference;
-            const radial = document.getElementById('radialProgress');
-            radial.style.strokeDashoffset = offset;
-            radial.style.stroke = tele.safety_status_color;
+            const arc = document.getElementById('gaugeProgressArc');
+            arc.style.strokeDashoffset = offset;
+            arc.style.stroke = tele.safety_status_color;
 
-            // Safety Badge
-            const badge = document.getElementById('safetyBadge');
-            badge.style.background = tele.safety_status_color + '22';
-            badge.style.color = tele.safety_status_color;
-            document.getElementById('safetyBadgeText').textContent = tele.safety_status;
-            document.getElementById('safetyStatusText').textContent = tele.is_distracted ? 'Distraction Detected' : 'Safe Driver Attention';
+            // Status Pill
+            const pill = document.getElementById('safetyStatusPill');
+            pill.style.background = tele.safety_status_color + '24';
+            pill.style.color = tele.safety_status_color;
+            document.getElementById('safetyStatusPillText').textContent = tele.safety_status;
+            document.getElementById('safetyHeroTitle').textContent = tele.is_distracted ? 'Distraction Detected' : 'Safe Driver Attention';
 
-            // Primary Alert Box
-            const primaryIcon = document.getElementById('primaryIcon');
-            primaryIcon.className = 'fa-solid ' + pred.icon;
-            primaryIcon.style.color = pred.badge_color;
-            document.getElementById('primaryTitle').textContent = pred.title;
-            document.getElementById('primaryConfidence').textContent = pred.confidence + '%';
-            document.getElementById('primaryConfidence').style.color = pred.badge_color;
-            document.getElementById('primaryDesc').textContent = pred.description;
-            document.getElementById('primaryDirective').textContent = pred.recommendation;
+            // Spotlight Card
+            const iconEl = document.getElementById('spotlightIcon');
+            iconEl.className = 'fa-solid ' + pred.icon;
+            iconEl.style.color = pred.badge_color;
+            document.getElementById('spotlightTitle').textContent = pred.title;
+            document.getElementById('spotlightConf').textContent = pred.confidence + '%';
+            document.getElementById('spotlightConf').style.color = pred.badge_color;
+            document.getElementById('spotlightDesc').textContent = pred.description;
+            document.getElementById('spotlightDirective').textContent = pred.recommendation;
 
-            // Triad Metrics
-            document.getElementById('visualVal').textContent = pred.metrics.visual_distraction + '%';
-            document.getElementById('visualVal').style.color = pred.metrics.visual_distraction > 50 ? '#ff1744' : '#00e676';
-            document.getElementById('manualVal').textContent = pred.metrics.manual_distraction + '%';
-            document.getElementById('manualVal').style.color = pred.metrics.manual_distraction > 50 ? '#ff1744' : '#00e676';
-            document.getElementById('cognitiveVal').textContent = pred.metrics.cognitive_distraction + '%';
-            document.getElementById('cognitiveVal').style.color = pred.metrics.cognitive_distraction > 50 ? '#ff1744' : '#00e676';
+            // Triad
+            document.getElementById('triadVisual').textContent = pred.metrics.visual_distraction + '%';
+            document.getElementById('triadVisual').style.color = pred.metrics.visual_distraction > 50 ? '#ff1744' : '#00e676';
+            document.getElementById('triadManual').textContent = pred.metrics.manual_distraction + '%';
+            document.getElementById('triadManual').style.color = pred.metrics.manual_distraction > 50 ? '#ff1744' : '#00e676';
+            document.getElementById('triadCognitive').textContent = pred.metrics.cognitive_distraction + '%';
+            document.getElementById('triadCognitive').style.color = pred.metrics.cognitive_distraction > 50 ? '#ff1744' : '#00e676';
 
-            // Probabilities Bars
-            const probContainer = document.getElementById('probListContainer');
-            probContainer.innerHTML = '';
+            // Probability Distribution Rows
+            const container = document.getElementById('distributionContainer');
+            container.innerHTML = '';
             data.top_3.forEach(item => {
-                const itemDiv = document.createElement('div');
-                itemDiv.className = 'prob-item';
-                itemDiv.innerHTML = `
-                    <div class="prob-meta">
+                const row = document.createElement('div');
+                row.className = 'distribution-row';
+                row.innerHTML = `
+                    <div class="distribution-meta">
                         <span><i class="fa-solid ${item.icon}" style="color: ${item.badge_color};"></i> ${item.title}</span>
                         <span style="font-family: 'JetBrains Mono'; font-weight: 700;">${item.confidence}%</span>
                     </div>
-                    <div class="prob-track">
-                        <div class="prob-fill" style="width: ${item.confidence}%; background: ${item.badge_color};"></div>
+                    <div class="distribution-bar-track">
+                        <div class="distribution-bar-fill" style="width: ${item.confidence}%; background: ${item.badge_color};"></div>
                     </div>
                 `;
-                probContainer.appendChild(itemDiv);
+                container.appendChild(row);
             });
 
-            // Audio Alert if severe distraction
+            // Danger Chime
             if (tele.is_distracted && pred.risk_score >= 70) {
-                playDistractionChime();
+                triggerDangerChime();
             }
 
-            // Append to Audit Trail
-            addAuditLog(sourceName, pred, tele, cachedOriginal);
+            // Record Log
+            appendFleetLog(sourceTitle, pred, tele, activeOriginalImg);
         }
 
-        function addAuditLog(name, pred, tele, thumbSrc) {
+        function appendFleetLog(name, pred, tele, thumbnail) {
             const timeStr = new Date().toLocaleTimeString();
-            const logEntry = {
+            const record = {
                 time: timeStr,
                 name: name,
                 title: pred.title,
@@ -1906,118 +1871,118 @@ HTML_DASHBOARD = """
                 safetyScore: tele.safety_score,
                 status: tele.safety_status,
                 color: tele.safety_status_color,
-                thumb: thumbSrc
+                thumb: thumbnail
             };
-            auditLogs.unshift(logEntry);
-            if (auditLogs.length > 50) auditLogs.pop();
+            auditRecords.unshift(record);
+            if (auditRecords.length > 50) auditRecords.pop();
 
-            const tbody = document.getElementById('auditTableBody');
+            const tbody = document.getElementById('fleetLogTableBody');
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td style="font-family: 'JetBrains Mono';">${timeStr}</td>
-                <td><img src="${thumbSrc}" class="audit-thumb"></td>
-                <td style="font-weight: 600;">${pred.title}</td>
-                <td><span style="font-size: 11px; opacity: 0.8;">${pred.category}</span></td>
+                <td style="font-family: 'JetBrains Mono'; font-size: 12px;">${timeStr}</td>
+                <td><img src="${thumbnail}" class="log-thumbnail"></td>
+                <td style="font-weight: 700;">${pred.title}</td>
+                <td><span style="font-size: 12px; color: var(--text-secondary);">${pred.category}</span></td>
                 <td style="font-family: 'JetBrains Mono'; font-weight: 700;">${pred.confidence}%</td>
-                <td style="font-family: 'JetBrains Mono'; font-weight: 700; color: ${tele.safety_status_color};">${tele.safety_score}/100</td>
-                <td><span class="safety-badge" style="background: ${tele.safety_status_color}22; color: ${tele.safety_status_color};">${tele.safety_status}</span></td>
+                <td style="font-family: 'JetBrains Mono'; font-weight: 800; color: ${tele.safety_status_color};">${tele.safety_score}/100</td>
+                <td><span class="status-pill-badge" style="background: ${tele.safety_status_color}22; color: ${tele.safety_status_color};">${tele.safety_status}</span></td>
             `;
             tbody.insertBefore(row, tbody.firstChild);
         }
 
-        function exportAuditJSON() {
-            const blob = new Blob([JSON.stringify(auditLogs, null, 2)], { type: 'application/json' });
+        function downloadAuditJSON() {
+            const blob = new Blob([JSON.stringify(auditRecords, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `AegisEye_DMS_Audit_${Date.now()}.json`;
+            a.download = `DriverGuard_AI_Fleet_Audit_${Date.now()}.json`;
             a.click();
         }
 
         // Live AI Dashcam Mode
-        async function toggleWebcam() {
-            const video = document.getElementById('webcamVideo');
-            const btn = document.getElementById('btnToggleCam');
-            const btnTxt = document.getElementById('camBtnText');
+        async function handleStreamToggle() {
+            const video = document.getElementById('dashcamVideoFeed');
+            const btn = document.getElementById('btnToggleStream');
+            const label = document.getElementById('streamToggleLabel');
 
-            if (!webcamRunning) {
+            if (!isStreaming) {
                 try {
-                    initAudio();
-                    webcamStream = await navigator.mediaDevices.getUserMedia({
+                    initWebAudio();
+                    activeMediaStream = await navigator.mediaDevices.getUserMedia({
                         video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' }
                     });
-                    video.srcObject = webcamStream;
-                    webcamRunning = true;
-                    btnTxt.textContent = 'Stop AI Dashcam';
-                    btn.style.background = 'var(--danger-gradient)';
+                    video.srcObject = activeMediaStream;
+                    isStreaming = true;
+                    label.textContent = 'Stop AI Dashcam';
+                    btn.style.background = 'var(--grad-danger)';
 
                     let lastFrameTime = performance.now();
-                    streamInterval = setInterval(() => {
-                        captureAndStreamFrame();
+                    streamTimer = setInterval(() => {
+                        captureStreamFrame();
                         const now = performance.now();
                         const fps = (1000 / (now - lastFrameTime)).toFixed(1);
                         lastFrameTime = now;
-                        document.getElementById('streamFps').textContent = fps + ' FPS';
-                    }, 500); // 2 FPS stream to balance smoothness and compute
+                        document.getElementById('liveFpsTicker').textContent = fps + ' FPS';
+                    }, 500);
                 } catch (err) {
-                    alert('Camera access denied or unavailable: ' + err.message);
+                    alert('Camera access denied or device unavailable: ' + err.message);
                 }
             } else {
-                if (webcamStream) {
-                    webcamStream.getTracks().forEach(track => track.stop());
+                if (activeMediaStream) {
+                    activeMediaStream.getTracks().forEach(t => t.stop());
                 }
-                clearInterval(streamInterval);
+                clearInterval(streamTimer);
                 video.srcObject = null;
-                webcamRunning = false;
-                btnTxt.textContent = 'Start AI Dashcam';
-                btn.style.background = 'var(--primary-gradient)';
-                document.getElementById('streamFps').textContent = '0.0 FPS';
+                isStreaming = false;
+                label.textContent = 'Start AI Dashcam';
+                btn.style.background = 'var(--grad-primary)';
+                document.getElementById('liveFpsTicker').textContent = '0.0 FPS';
             }
         }
 
-        function captureAndStreamFrame() {
-            const video = document.getElementById('webcamVideo');
-            const canvas = document.getElementById('streamCanvas');
+        function captureStreamFrame() {
+            const video = document.getElementById('dashcamVideoFeed');
+            const canvas = document.getElementById('hiddenStreamCanvas');
             if (!video.videoWidth) return;
 
             canvas.width = 320;
             canvas.height = 240;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const base64Data = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+            const b64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
 
             fetch('/api/predict', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    image: base64Data,
-                    use_tta: false, // fast mode for stream
+                    image: b64,
+                    use_tta: false,
                     generate_cam: false
                 })
             })
-            .then(res => res.json())
+            .then(r => r.json())
             .then(data => {
                 if (data.success) {
                     const pred = data.prediction;
                     const tele = data.telematics;
-                    const pill = document.getElementById('liveAlertPill');
-                    const label = document.getElementById('liveDetectionLabel');
+                    const chip = document.getElementById('streamAlertChip');
+                    const label = document.getElementById('streamBehaviorLabel');
                     
-                    pill.style.background = tele.safety_status_color + '33';
-                    pill.style.color = tele.safety_status_color;
+                    chip.style.background = tele.safety_status_color + '33';
+                    chip.style.color = tele.safety_status_color;
                     label.textContent = `${pred.title} (${pred.confidence}%)`;
 
                     if (tele.is_distracted && pred.risk_score >= 75) {
-                        playDistractionChime();
+                        triggerDangerChime();
                     }
                 }
             })
-            .catch(err => console.warn('Stream frame inference error:', err));
+            .catch(e => console.warn('Stream inference notice:', e));
         }
 
-        // On Page Load: Analyze Default Sample
+        // On Load: Analyze Initial Preset
         window.addEventListener('DOMContentLoaded', () => {
-            loadSampleScenario('safe_driving.jpg', 'Safe Driving Preset');
+            loadPresetImage('safe_driving.jpg', 'Safe Driving Preset');
         });
     </script>
 </body>
@@ -2069,7 +2034,7 @@ def api_predict():
 
 @app.route("/api/samples", methods=["GET"])
 def api_samples():
-    """Returns available sample scenarios."""
+    """Returns available sample scenario images."""
     samples_dir = os.path.join('static', 'samples')
     if not os.path.exists(samples_dir):
         return jsonify([])
@@ -2082,7 +2047,7 @@ def health():
     return jsonify({
         "status": "healthy",
         "model_loaded": model_loaded,
-        "engine": "EfficientNet-B0 DMS",
+        "engine": "DriverGuard AI Neural Core v8.0",
         "timestamp": datetime.now().isoformat()
     })
 
@@ -2104,5 +2069,5 @@ if __name__ == "__main__":
     port = int(os.getenv('PORT', 5000))
     debug = os.getenv('FLASK_ENV', 'development') == 'development'
     
-    logger.info(f"Starting AegisEye Driver Distraction DMS on {host}:{port}")
+    logger.info(f"Starting DriverGuard AI DMS on {host}:{port}")
     app.run(debug=debug, host=host, port=port)
