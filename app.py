@@ -619,10 +619,7 @@ input[type=file] { display: none; }
       <div class="brand-sub">Driver Safety Intelligence</div>
     </div>
   </a>
-  <div class="status-chip">
-    <span class="status-dot"></span>
-    EfficientNet-B0 · Online
-  </div>
+
 </header>
 
 <!-- ─── PAGE LAYOUT ─── -->
