@@ -737,13 +737,13 @@ input[type=file] { display: none; }
           <svg class="ring-svg" viewBox="0 0 140 140">
             <circle class="ring-track" cx="70" cy="70" r="60"></circle>
             <circle class="ring-fill" id="ringFill" cx="70" cy="70" r="60"
-              stroke="{{ '#00e676' if label == 'c0' else '#ff3d71' }}"
+              stroke="{{ '#00e676' if label == 'c0' else '#ff3d71' if label else '#334155' }}"
               stroke-dasharray="376.99"
-              stroke-dashoffset="{{ 376.99 - (conf|default(0) / 100 * 376.99) }}">
+              stroke-dashoffset="{{ 376.99 - ((conf or 0) / 100 * 376.99) }}">
             </circle>
           </svg>
           <div class="ring-center">
-            <span class="ring-pct" id="ringPct" style="color:{{ '#00e676' if label == 'c0' else '#ff3d71' }}">{{conf|default(0)}}%</span>
+            <span class="ring-pct" id="ringPct" style="color:{{ '#00e676' if label == 'c0' else '#ff3d71' if label else '#334155' }}">{{ conf or 0 }}%</span>
             <span class="ring-lbl">Confidence</span>
           </div>
         </div>
